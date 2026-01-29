@@ -24,6 +24,14 @@ enum BusinessStatus {
   BLOCKED
 }
 
+enum DeliveryStatus {
+  AVAILABLE
+  ACCEPTED
+  PICKED_UP
+  COMPLETED
+  CANCELED
+}
+
 model User {
   id   String @id @default(uuid())
   name String
@@ -39,6 +47,11 @@ model User {
   // relations
   otpTokens  OtpToken[]
   businesses Business[] @relation("BusinessOwner")
+  
+  // Delivery relations
+  merchantDeliveries        Delivery[] @relation("MerchantDeliveries")
+  courierDeliveries         Delivery[] @relation("CourierDeliveries")
+  preferredCourierDeliveries Delivery[] @relation("PreferredCourierDeliveries")
 
   @@map("users")
 }
@@ -72,7 +85,6 @@ model Category {
   slug String @unique
 
   businesses Business[]
-
   @@map("categories")
 }
 
@@ -91,8 +103,48 @@ model Business {
 
   owner    User     @relation("BusinessOwner", fields: [ownerId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])
+  
+  deliveries Delivery[]
 
   @@index([ownerId])
   @@index([categoryId])
   @@map("businesses")
+}
+
+model Delivery {
+  id String @id @default(uuid())
+
+  businessId String   @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id])
+
+  merchantId String @map("merchant_id")
+  merchant   User   @relation("MerchantDeliveries", fields: [merchantId], references: [id])
+
+  courierId String? @map("courier_id")
+  courier   User?   @relation("CourierDeliveries", fields: [courierId], references: [id])
+
+  preferredCourierId String? @map("preferred_courier_id")
+  preferredCourier   User?   @relation("PreferredCourierDeliveries", fields: [preferredCourierId], references: [id])
+
+  status DeliveryStatus @default(AVAILABLE)
+
+  pickupAddress  String  @map("pickup_address")
+  dropoffAddress String  @map("dropoff_address")
+  price          Decimal @db.Decimal(10, 2)
+  notes          String?
+
+  acceptedAt  DateTime? @map("accepted_at")
+  pickedUpAt  DateTime? @map("picked_up_at")
+  completedAt DateTime? @map("completed_at")
+  canceledAt  DateTime? @map("canceled_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([businessId])
+  @@index([courierId])
+  @@index([createdAt])
+
+  @@map("deliveries")
 }
