@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDeliveryDto } from './dto/create-delivery.dto';
-import { DeliveryStatus, Prisma } from '@prisma/client';
+import { DeliveryStatus, Prisma, Role } from '@prisma/client';
 import { NotificationSender } from '../notifications/notification-channel';
 
 @Injectable()
@@ -53,7 +53,7 @@ export class DeliveriesService {
     });
   }
 
-  async findOneMerchant(userId: string, id: string) {
+  async findOne(userId: string, role: string, id: string) {
     const delivery = await this.prisma.delivery.findUnique({
       where: { id },
       include: {
@@ -61,7 +61,10 @@ export class DeliveriesService {
             select: { id: true, name: true, phoneE164: true }
         },
          business: {
-            select: { id: true, name: true }
+            select: { id: true, name: true, phone: true, address: true }
+        },
+        merchant: {
+            select: { id: true, name: true, phoneE164: true }
         }
       }
     });
@@ -70,7 +73,11 @@ export class DeliveriesService {
       throw new NotFoundException('Delivery not found');
     }
 
-    if (delivery.merchantId !== userId) {
+    if (role === Role.MERCHANT && delivery.merchantId !== userId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    if (role === Role.COURIER && delivery.courierId !== userId) {
       throw new ForbiddenException('Access denied');
     }
 

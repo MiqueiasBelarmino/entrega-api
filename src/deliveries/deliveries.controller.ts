@@ -43,9 +43,9 @@ export class DeliveriesController {
   }
 
   @Get(':id')
-  @Roles(Role.MERCHANT)
-  findOneMerchant(@Request() req, @Param('id') id: string) {
-    return this.deliveriesService.findOneMerchant(req.user.id, id);
+  @Roles(Role.MERCHANT, Role.COURIER)
+  findOne(@Request() req, @Param('id') id: string) {
+    return this.deliveriesService.findOne(req.user.id, req.user.role, id);
   }
 
   @Post(':id/accept')
