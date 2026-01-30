@@ -78,9 +78,24 @@ export class DeliveriesService {
   }
 
   // Courier methods
-  async findAllAvailable() {
+  async findAvailable() {
     return this.prisma.delivery.findMany({
       where: { status: DeliveryStatus.AVAILABLE },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        business: {
+          select: { id: true, name: true }
+        },
+        merchant: {
+          select: { id: true, name: true, phoneE164: true }
+        }
+      }
+    });
+  }
+
+  async findByCourier(courierId: string) {
+    return this.prisma.delivery.findMany({
+      where: { courierId },
       orderBy: { createdAt: 'desc' },
       include: {
         business: {

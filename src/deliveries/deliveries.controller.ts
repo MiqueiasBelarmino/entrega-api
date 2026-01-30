@@ -18,7 +18,13 @@ export class DeliveriesController {
   @Roles(Role.COURIER)
   findAvailable(@Request() req) {
     // Note: 'req' unused but guard checks checks role
-    return this.deliveriesService.findAllAvailable();
+    return this.deliveriesService.findAvailable();
+  }
+
+  @Get('active')
+  @Roles(Role.COURIER)
+  findActive(@Request() req) {
+    return this.deliveriesService.findByCourier(req.user.id);
   }
 
   // ==========================================

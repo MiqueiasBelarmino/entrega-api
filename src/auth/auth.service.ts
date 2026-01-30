@@ -127,7 +127,7 @@ export class AuthService {
     const jwt = this.jwtService.sign(payload);
 
     return {
-      token: jwt,
+      accessToken: jwt, // Consistent with frontend Verify page which expects accessToken
       user: {
         id: user.id,
         name: user.name,
@@ -136,5 +136,16 @@ export class AuthService {
         phoneE164: user.phoneE164,
       },
     };
+  }
+
+  async getMe(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        businesses: {
+          select: { id: true, name: true, slug: true }
+        }
+      }
+    });
   }
 }
