@@ -94,18 +94,59 @@ export class DeliveriesService {
   }
 
   async findByCourier(courierId: string) {
-    return this.prisma.delivery.findMany({
-      where: { courierId },
-      orderBy: { createdAt: 'desc' },
-      include: {
+    const commonInclude = {
         business: {
             select: { id: true, name: true }
         },
         merchant: {
             select: { id: true, name: true, phoneE164: true }
         }
-      }
-    });
+    };
+
+    const [inProgress, waiting, completed, canceled] = await Promise.all([
+        // 1. Em andamento (PICKED_UP): pickedUpAt ASC
+        this.prisma.delivery.findMany({
+            where: { courierId, status: DeliveryStatus.PICKED_UP },
+            orderBy: [
+                { pickedUpAt: 'asc' },
+                { createdAt: 'asc' },
+                { id: 'asc' }
+            ],
+            include: commonInclude
+        }),
+        // 2. Aguardando retirada (ACCEPTED): acceptedAt ASC
+        this.prisma.delivery.findMany({
+            where: { courierId, status: DeliveryStatus.ACCEPTED },
+            orderBy: [
+                { acceptedAt: 'asc' },
+                { createdAt: 'asc' },
+                { id: 'asc' }
+            ],
+            include: commonInclude
+        }),
+        // 3. Histórico — completadas (COMPLETED): completedAt DESC
+        this.prisma.delivery.findMany({
+            where: { courierId, status: DeliveryStatus.COMPLETED },
+            orderBy: [
+                { completedAt: 'desc' },
+                { createdAt: 'asc' },
+                { id: 'asc' }
+            ],
+            include: commonInclude
+        }),
+        // 4. Histórico — canceladas (CANCELED): canceledAt DESC
+        this.prisma.delivery.findMany({
+            where: { courierId, status: DeliveryStatus.CANCELED },
+            orderBy: [
+                { canceledAt: 'desc' },
+                { createdAt: 'asc' },
+                { id: 'asc' }
+            ],
+            include: commonInclude
+        })
+    ]);
+
+    return [...inProgress, ...waiting, ...completed, ...canceled];
   }
 
   async accept(userId: string, id: string) {
