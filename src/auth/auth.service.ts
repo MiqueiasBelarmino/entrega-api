@@ -143,7 +143,7 @@ export class AuthService {
       where: { id: userId },
       include: {
         businesses: {
-          select: { id: true, name: true, slug: true }
+          select: { id: true, name: true, slug: true, address: true, defaultDeliveryPrice: true }
         }
       }
     });

@@ -4,12 +4,14 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
+import { BusinessModule } from './business/business.module';
 
 @Module({
   imports: [
     AuthModule,
     UsersModule,
-    DeliveriesModule
+    DeliveriesModule,
+    BusinessModule
   ],
   controllers: [AppController],
   providers: [AppService],

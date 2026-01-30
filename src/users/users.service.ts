@@ -39,4 +39,11 @@ export class UsersService {
     if (!user) throw new NotFoundException('Usuário não encontrado');
     return user;
   }
+
+  async update(id: string, data: { name?: string; email?: string }) {
+    return this.prisma.user.update({
+      where: { id },
+      data,
+    });
+  }
 }

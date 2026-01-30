@@ -74,6 +74,7 @@ async function main() {
       status: 'ACTIVE',
       address: 'Rua das Pizzas, 100',
       phone: '+5511999999999',
+      defaultDeliveryPrice: 15.00,
     },
   });
 
