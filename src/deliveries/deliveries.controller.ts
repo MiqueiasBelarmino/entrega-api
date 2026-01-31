@@ -75,4 +75,12 @@ export class DeliveriesController {
   cancel(@Request() req, @Param('id') id: string) {
     return this.deliveriesService.cancel(req.user.id, id);
   }
+
+  @Post(':id/issue')
+  @Roles(Role.COURIER)
+  @HttpCode(HttpStatus.OK)
+  reportIssue(@Request() req, @Param('id') id: string, @Body('reason') reason: string) {
+      if (!reason) throw new ForbiddenException('Reason is required'); // Should use DTO validation ideally, but simple check here
+      return this.deliveriesService.reportIssue(req.user.id, id, reason);
+  }
 }

@@ -208,6 +208,7 @@ export class DeliveriesService {
     if (!delivery) throw new NotFoundException('Delivery not found');
 
     if (delivery.courierId !== userId) throw new ForbiddenException('Not your delivery');
+    if (delivery.status === DeliveryStatus.ISSUE) throw new BadRequestException('Cannot complete delivery with reported issue');
     if (delivery.status !== DeliveryStatus.PICKED_UP) throw new BadRequestException('Delivery must be PICKED_UP to complete');
 
     const updated = await this.prisma.delivery.update({
@@ -235,7 +236,9 @@ export class DeliveriesService {
     if (!delivery) throw new NotFoundException('Delivery not found');
 
     if (delivery.courierId !== userId) throw new ForbiddenException('Not your delivery');
+    if (delivery.status === DeliveryStatus.ISSUE) throw new BadRequestException('Cannot cancel delivery with reported issue');
     if (delivery.status !== DeliveryStatus.ACCEPTED) throw new BadRequestException('Can only cancel if ACCEPTED');
+
 
     return this.prisma.delivery.update({
         where: { id },
@@ -244,5 +247,34 @@ export class DeliveriesService {
             canceledAt: new Date(),
         }
     });
+  }
+
+  async reportIssue(userId: string, id: string, reason: string) {
+    const delivery = await this.prisma.delivery.findUnique({ where: { id } });
+    if (!delivery) throw new NotFoundException('Delivery not found');
+
+    if (delivery.courierId !== userId) throw new ForbiddenException('Not your delivery');
+    
+    // Can only report issue if in progress
+    if (delivery.status !== DeliveryStatus.ACCEPTED && delivery.status !== DeliveryStatus.PICKED_UP) {
+        throw new BadRequestException('Can only report issue if delivery is in progress');
+    }
+
+    const updated = await this.prisma.delivery.update({
+        where: { id },
+        data: {
+            status: DeliveryStatus.ISSUE,
+            issueAt: new Date(),
+            issueReason: reason,
+        }
+    });
+
+    // Notify Merchant
+    await this.notifications.send(
+      updated.merchantId,
+      `ISSUE REPORTED on delivery ${updated.id.slice(0, 8)}: ${reason}`
+    );
+
+    return updated;
   }
 }

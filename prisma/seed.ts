@@ -24,6 +24,23 @@ async function main() {
     create: { name: 'Logística', slug: 'logistics' },
   });
 
+  // [NEW] Root Admin Seeding
+  const rootPhone = process.env.ROOT_ADMIN_PHONE_E164;
+  if (rootPhone) {
+      console.log(`Seeding Root Admin: ${rootPhone}`);
+      await prisma.user.upsert({
+          where: { phoneE164: rootPhone },
+          update: { role: Role.ADMIN, isRoot: true, isActive: true },
+          create: {
+              name: process.env.ROOT_ADMIN_NAME || 'Root Admin',
+              phoneE164: rootPhone,
+              role: Role.ADMIN,
+              isRoot: true,
+              isActive: true,
+          }
+      });
+  }
+
   // 3. Create Users
   // Merchant
   const merchant = await prisma.user.upsert({

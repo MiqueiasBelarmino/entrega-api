@@ -5,13 +5,15 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { BusinessModule } from './business/business.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
     AuthModule,
     UsersModule,
     DeliveriesModule,
-    BusinessModule
+    BusinessModule,
+    AdminModule
   ],
   controllers: [AppController],
   providers: [AppService],

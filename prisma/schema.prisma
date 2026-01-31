@@ -31,6 +31,7 @@ enum DeliveryStatus {
   PICKED_UP
   COMPLETED
   CANCELED
+  ISSUE
 }
 
 model User {
@@ -42,6 +43,7 @@ model User {
   email String? @unique
 
   isActive  Boolean  @default(true) @map("is_active")
+  isRoot    Boolean  @default(false) @map("is_root") // [NEW]
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -54,6 +56,9 @@ model User {
   courierDeliveries         Delivery[] @relation("CourierDeliveries")
   preferredCourierDeliveries Delivery[] @relation("PreferredCourierDeliveries")
 
+  @@index([role])     // [NEW]
+  @@index([isActive]) // [NEW]
+  @@index([createdAt])// [NEW]
   @@map("users")
 }
 
@@ -139,13 +144,18 @@ model Delivery {
   pickedUpAt  DateTime? @map("picked_up_at")
   completedAt DateTime? @map("completed_at")
   canceledAt  DateTime? @map("canceled_at")
+  
+  // [NEW] Issue reporting
+  issueAt     DateTime? @map("issue_at")
+  issueReason String?   @map("issue_reason")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([status])
-  @@index([businessId])
-  @@index([courierId])
+  @@index([merchantId]) // [NEW]
+  @@index([courierId])  // [NEW]
+  @@index([businessId]) // [NEW]
   @@index([createdAt])
 
   @@map("deliveries")
