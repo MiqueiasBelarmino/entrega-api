@@ -77,7 +77,7 @@ export class DeliveriesService {
       throw new ForbiddenException('Access denied');
     }
 
-    if (role === Role.COURIER && delivery.courierId !== userId) {
+    if (role === Role.COURIER && delivery.courierId !== userId && delivery.status !== DeliveryStatus.AVAILABLE) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -110,7 +110,7 @@ export class DeliveriesService {
         }
     };
 
-    const [inProgress, waiting, completed, canceled] = await Promise.all([
+    const [inProgress, waiting] = await Promise.all([
         // 1. Em andamento (PICKED_UP): pickedUpAt ASC
         this.prisma.delivery.findMany({
             where: { courierId, status: DeliveryStatus.PICKED_UP },
@@ -131,29 +131,29 @@ export class DeliveriesService {
             ],
             include: commonInclude
         }),
-        // 3. Histórico — completadas (COMPLETED): completedAt DESC
-        this.prisma.delivery.findMany({
-            where: { courierId, status: DeliveryStatus.COMPLETED },
-            orderBy: [
-                { completedAt: 'desc' },
-                { createdAt: 'asc' },
-                { id: 'asc' }
-            ],
-            include: commonInclude
-        }),
-        // 4. Histórico — canceladas (CANCELED): canceledAt DESC
-        this.prisma.delivery.findMany({
-            where: { courierId, status: DeliveryStatus.CANCELED },
-            orderBy: [
-                { canceledAt: 'desc' },
-                { createdAt: 'asc' },
-                { id: 'asc' }
-            ],
-            include: commonInclude
-        })
+        // // 3. Histórico — completadas (COMPLETED): completedAt DESC
+        // this.prisma.delivery.findMany({
+        //     where: { courierId, status: DeliveryStatus.COMPLETED },
+        //     orderBy: [
+        //         { completedAt: 'desc' },
+        //         { createdAt: 'asc' },
+        //         { id: 'asc' }
+        //     ],
+        //     include: commonInclude
+        // }),
+        // // 4. Histórico — canceladas (CANCELED): canceledAt DESC
+        // this.prisma.delivery.findMany({
+        //     where: { courierId, status: DeliveryStatus.CANCELED },
+        //     orderBy: [
+        //         { canceledAt: 'desc' },
+        //         { createdAt: 'asc' },
+        //         { id: 'asc' }
+        //     ],
+        //     include: commonInclude
+        // })
     ]);
 
-    return [...inProgress, ...waiting, ...completed, ...canceled];
+    return [...inProgress, ...waiting];
   }
 
   async accept(userId: string, id: string) {
@@ -179,10 +179,10 @@ export class DeliveriesService {
     });
 
     // Notify Merchant
-    await this.notifications.send(
-      delivery.merchantId,
-      `Your delivery ${delivery.id.slice(0, 8)} was accepted by a courier.`
-    );
+    // await this.notifications.send(
+    //   delivery.merchantId,
+    //   `Your delivery ${delivery.id.slice(0, 8)} was accepted by a courier.`
+    // );
 
     return delivery;
   }
@@ -220,10 +220,10 @@ export class DeliveriesService {
     });
 
     // Notify Merchant
-    await this.notifications.send(
-      updated.merchantId,
-      `Your delivery ${updated.id.slice(0, 8)} has been completed!`
-    );
+    // await this.notifications.send(
+    //   updated.merchantId,
+    //   `Your delivery ${updated.id.slice(0, 8)} has been completed!`
+    // );
 
     return updated;
   }
@@ -270,10 +270,10 @@ export class DeliveriesService {
     });
 
     // Notify Merchant
-    await this.notifications.send(
-      updated.merchantId,
-      `ISSUE REPORTED on delivery ${updated.id.slice(0, 8)}: ${reason}`
-    );
+    // await this.notifications.send(
+    //   updated.merchantId,
+    //   `ISSUE REPORTED on delivery ${updated.id.slice(0, 8)}: ${reason}`
+    // );
 
     return updated;
   }

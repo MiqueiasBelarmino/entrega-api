@@ -2,16 +2,19 @@ import { Module } from '@nestjs/common';
 import { NotificationSender } from './notification-channel';
 import { ConsoleNotificationSender } from './console-notification-sender';
 import { TwilioNotificationSender } from './twilio-notification-sender';
+import { MoceanNotificationSender } from './mocean-notification-sender';
+import { SmartNotificationSender } from './smart-notification-sender';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
   providers: [
+    TwilioNotificationSender,
+    MoceanNotificationSender,
     {
       provide: NotificationSender,
-      useClass:
-        process.env.NODE_ENV === 'production'
-          ? TwilioNotificationSender
-          : TwilioNotificationSender, // Using Twilio for dev too as requested, or can be toggled
+      useClass: SmartNotificationSender,
     },
+    PrismaService,
   ],
   exports: [NotificationSender],
 })

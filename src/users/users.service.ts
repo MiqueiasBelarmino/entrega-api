@@ -13,7 +13,6 @@ export class UsersService {
     role?: Role;
   }) {
 
-    console.log(data);
     return this.prisma.user.create({
       data: {
         name: data.name,

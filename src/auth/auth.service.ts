@@ -12,6 +12,7 @@ type JwtPayload = {
   email?: string | null;
   role: Role;
   phoneE164: string;
+  isRoot: boolean;
 };
 
 @Injectable()
@@ -68,7 +69,6 @@ export class AuthService {
         userAgent: params.userAgent,
       },
     });
-    console.log(code);
 
     await this.notificationSender.sendOtp({
       to: phoneE164,
@@ -84,7 +84,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { phoneE164 },
-      select: { id: true, name: true, email: true, role: true, phoneE164: true, isActive: true },
+      select: { id: true, name: true, email: true, role: true, phoneE164: true, isActive: true, isRoot: true },
     });
 
     if (!user || !user.isActive) throw new UnauthorizedException('Acesso não permitido.');
@@ -122,6 +122,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       phoneE164: user.phoneE164,
+      isRoot: user.isRoot,
     };
 
     const jwt = this.jwtService.sign(payload);
@@ -134,6 +135,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         phoneE164: user.phoneE164,
+        isRoot: user.isRoot,
       },
     };
   }

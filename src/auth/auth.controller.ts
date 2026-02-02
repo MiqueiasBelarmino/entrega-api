@@ -26,8 +26,7 @@ export class AuthController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('me')
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@Req() req: any) {

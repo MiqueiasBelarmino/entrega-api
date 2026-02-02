@@ -6,16 +6,20 @@ import { UsersModule } from './users/users.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { BusinessModule } from './business/business.module';
 import { AdminModule } from './admin/admin.module';
+import { SystemController } from './system/system.controller';
+import { PrismaService } from './prisma/prisma.service';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
     AuthModule,
     UsersModule,
-    DeliveriesModule,
     BusinessModule,
-    AdminModule
+    DeliveriesModule,
+    NotificationsModule,
+    AdminModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, SystemController],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}
