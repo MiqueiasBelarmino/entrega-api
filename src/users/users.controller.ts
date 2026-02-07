@@ -3,12 +3,17 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { normalizePhoneToE164BR } from '../common/phone/normalize-phone';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   create(@Body() body: CreateUserDto) {
     const phoneE164 = normalizePhoneToE164BR(body.phone);
     return this.usersService.create({
@@ -18,11 +23,15 @@ export class UsersController {
   }
 
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   findAll() {
     return this.usersService.findAll();
   }
 
   @Get(':id')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }

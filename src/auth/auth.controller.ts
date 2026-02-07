@@ -3,11 +3,13 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthStartDto } from './dto/auth-start.dto';
 import { AuthVerifyDto } from './dto/auth-verify.dto';
+import { Public } from '../common/decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('start')
   start(@Body() body: AuthStartDto, @Req() req: any) {
     return this.authService.startOtp({
@@ -18,6 +20,7 @@ export class AuthController {
     });
   }
 
+  @Public()
   @Post('verify')
   verify(@Body() body: AuthVerifyDto) {
     return this.authService.verifyOtp({
