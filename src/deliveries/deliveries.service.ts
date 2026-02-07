@@ -157,124 +157,147 @@ export class DeliveriesService {
   }
 
   async accept(userId: string, id: string) {
-    const delivery = await this.prisma.$transaction(async (tx) => {
-        const delivery = await tx.delivery.findUnique({
-            where: { id }
-        });
-
-        if (!delivery) throw new NotFoundException('Delivery not found');
-
-        if (delivery.status !== DeliveryStatus.AVAILABLE) {
-            throw new ConflictException('Delivery is not available');
-        }
-
-        return tx.delivery.update({
-            where: { id },
-            data: {
-                status: DeliveryStatus.ACCEPTED,
-                courierId: userId,
-                acceptedAt: new Date(),
-            }
-        });
+    // Atomic update to prevent race conditions
+    const result = await this.prisma.delivery.updateMany({
+      where: {
+        id,
+        status: DeliveryStatus.AVAILABLE,
+        courierId: null,
+      },
+      data: {
+        status: DeliveryStatus.ACCEPTED,
+        courierId: userId,
+        acceptedAt: new Date(),
+      },
     });
 
-    // Notify Merchant
-    // await this.notifications.send(
-    //   delivery.merchantId,
-    //   `Your delivery ${delivery.id.slice(0, 8)} was accepted by a courier.`
-    // );
+    if (result.count === 0) {
+      const delivery = await this.prisma.delivery.findUnique({ where: { id } });
+      if (!delivery) throw new NotFoundException('Delivery not found');
 
-    return delivery;
+      if (delivery.status !== DeliveryStatus.AVAILABLE) {
+        throw new ConflictException('Delivery is no longer available');
+      }
+      if (delivery.courierId) {
+        throw new ConflictException('Delivery already accepted by another courier');
+      }
+      // Should not happen if logic is correct but fallback
+      throw new ConflictException('Unable to accept delivery');
+    }
+
+    return this.prisma.delivery.findUnique({ where: { id } });
   }
 
   async pickup(userId: string, id: string) {
-    const delivery = await this.prisma.delivery.findUnique({ where: { id }});
-    if (!delivery) throw new NotFoundException('Delivery not found');
-    
-    if (delivery.courierId !== userId) throw new ForbiddenException('Not your delivery');
-    if (delivery.status !== DeliveryStatus.ACCEPTED) throw new BadRequestException('Delivery must be ACCEPTED to pickup');
-
-    return this.prisma.delivery.update({
-        where: { id },
-        data: {
-            status: DeliveryStatus.PICKED_UP,
-            pickedUpAt: new Date(),
-        }
+    const result = await this.prisma.delivery.updateMany({
+      where: {
+        id,
+        courierId: userId,
+        status: DeliveryStatus.ACCEPTED,
+      },
+      data: {
+        status: DeliveryStatus.PICKED_UP,
+        pickedUpAt: new Date(),
+      },
     });
+
+    if (result.count === 0) {
+      const delivery = await this.prisma.delivery.findUnique({ where: { id } });
+      if (!delivery) throw new NotFoundException('Delivery not found');
+
+      if (delivery.courierId !== userId) {
+        throw new ForbiddenException('You are not the courier for this delivery');
+      }
+      if (delivery.status !== DeliveryStatus.ACCEPTED) {
+        throw new ConflictException(`Cannot pickup delivery in status ${delivery.status}`);
+      }
+    }
+
+    return this.prisma.delivery.findUnique({ where: { id } });
   }
 
   async complete(userId: string, id: string) {
-    const delivery = await this.prisma.delivery.findUnique({ where: { id }});
-    if (!delivery) throw new NotFoundException('Delivery not found');
-
-    if (delivery.courierId !== userId) throw new ForbiddenException('Not your delivery');
-    if (delivery.status === DeliveryStatus.ISSUE) throw new BadRequestException('Cannot complete delivery with reported issue');
-    if (delivery.status !== DeliveryStatus.PICKED_UP) throw new BadRequestException('Delivery must be PICKED_UP to complete');
-
-    const updated = await this.prisma.delivery.update({
-        where: { id },
-        data: {
-            status: DeliveryStatus.COMPLETED,
-            completedAt: new Date(),
-        }
+    const result = await this.prisma.delivery.updateMany({
+      where: {
+        id,
+        courierId: userId,
+        status: DeliveryStatus.PICKED_UP,
+      },
+      data: {
+        status: DeliveryStatus.COMPLETED,
+        completedAt: new Date(),
+      },
     });
 
-    // Notify Merchant
-    // await this.notifications.send(
-    //   updated.merchantId,
-    //   `Your delivery ${updated.id.slice(0, 8)} has been completed!`
-    // );
+    if (result.count === 0) {
+      const delivery = await this.prisma.delivery.findUnique({ where: { id } });
+      if (!delivery) throw new NotFoundException('Delivery not found');
 
-    return updated;
+      if (delivery.courierId !== userId) {
+        throw new ForbiddenException('You are not the courier for this delivery');
+      }
+      if (delivery.status !== DeliveryStatus.PICKED_UP) {
+        throw new ConflictException(`Cannot complete delivery in status ${delivery.status}`);
+      }
+    }
+
+    return this.prisma.delivery.findUnique({ where: { id } });
   }
 
   async cancel(userId: string, id: string) {
-    // Only courier can cancel BEFORE pickup (conceptually, or maybe merchant too? Spec says "courier pode cancelar antes do pickup")
-    // "POST /deliveries/:id/cancel - permitido apenas se status == ACCEPTED - courier pode cancelar antes do pickup"
-    
-    const delivery = await this.prisma.delivery.findUnique({ where: { id }});
-    if (!delivery) throw new NotFoundException('Delivery not found');
-
-    if (delivery.courierId !== userId) throw new ForbiddenException('Not your delivery');
-    if (delivery.status === DeliveryStatus.ISSUE) throw new BadRequestException('Cannot cancel delivery with reported issue');
-    if (delivery.status !== DeliveryStatus.ACCEPTED) throw new BadRequestException('Can only cancel if ACCEPTED');
-
-
-    return this.prisma.delivery.update({
-        where: { id },
-        data: {
-            status: DeliveryStatus.CANCELED,
-            canceledAt: new Date(),
-        }
+    const result = await this.prisma.delivery.updateMany({
+      where: {
+        id,
+        courierId: userId,
+        status: DeliveryStatus.ACCEPTED,
+      },
+      data: {
+        status: DeliveryStatus.CANCELED,
+        canceledAt: new Date(),
+      },
     });
+
+    if (result.count === 0) {
+      const delivery = await this.prisma.delivery.findUnique({ where: { id } });
+      if (!delivery) throw new NotFoundException('Delivery not found');
+
+      if (delivery.courierId !== userId) {
+        throw new ForbiddenException('You are not the courier for this delivery');
+      }
+      if (delivery.status !== DeliveryStatus.ACCEPTED) {
+        throw new ConflictException(`Cannot cancel delivery in status ${delivery.status}`);
+      }
+    }
+
+    return this.prisma.delivery.findUnique({ where: { id } });
   }
 
   async reportIssue(userId: string, id: string, reason: string) {
-    const delivery = await this.prisma.delivery.findUnique({ where: { id } });
-    if (!delivery) throw new NotFoundException('Delivery not found');
-
-    if (delivery.courierId !== userId) throw new ForbiddenException('Not your delivery');
-    
-    // Can only report issue if in progress
-    if (delivery.status !== DeliveryStatus.ACCEPTED && delivery.status !== DeliveryStatus.PICKED_UP) {
-        throw new BadRequestException('Can only report issue if delivery is in progress');
-    }
-
-    const updated = await this.prisma.delivery.update({
-        where: { id },
-        data: {
-            status: DeliveryStatus.ISSUE,
-            issueAt: new Date(),
-            issueReason: reason,
-        }
+    const result = await this.prisma.delivery.updateMany({
+      where: {
+        id,
+        courierId: userId,
+        status: { in: [DeliveryStatus.ACCEPTED, DeliveryStatus.PICKED_UP] },
+      },
+      data: {
+        status: DeliveryStatus.ISSUE,
+        issueReason: reason,
+        issueAt: new Date(),
+      },
     });
 
-    // Notify Merchant
-    // await this.notifications.send(
-    //   updated.merchantId,
-    //   `ISSUE REPORTED on delivery ${updated.id.slice(0, 8)}: ${reason}`
-    // );
+    if (result.count === 0) {
+      const delivery = await this.prisma.delivery.findUnique({ where: { id } });
+      if (!delivery) throw new NotFoundException('Delivery not found');
 
-    return updated;
+      if (delivery.courierId !== userId) {
+        throw new ForbiddenException('You are not the courier for this delivery');
+      }
+      if (delivery.status !== DeliveryStatus.ACCEPTED && delivery.status !== DeliveryStatus.PICKED_UP) {
+        throw new ConflictException(`Cannot report issue for delivery in status ${delivery.status}`);
+      }
+    }
+
+    return this.prisma.delivery.findUnique({ where: { id } });
   }
 }
