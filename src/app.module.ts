@@ -10,6 +10,7 @@ import { AdminModule } from './admin/admin.module';
 import { SystemController } from './system/system.controller';
 import { PrismaService } from './prisma/prisma.service';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { ActiveUserGuard } from './auth/guards/active-user.guard';
 
@@ -20,6 +21,7 @@ import { ActiveUserGuard } from './auth/guards/active-user.guard';
     BusinessModule,
     DeliveriesModule,
     NotificationsModule,
+    SchedulerModule,
     AdminModule,
   ],
   controllers: [AppController, SystemController],
