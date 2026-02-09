@@ -139,6 +139,7 @@ model Delivery {
 
   preferredCourierId String? @map("preferred_courier_id")
   preferredCourier   User?   @relation("PreferredCourierDeliveries", fields: [preferredCourierId], references: [id])
+  preferredUntil     DateTime? @map("preferred_until")
 
   status DeliveryStatus @default(AVAILABLE)
 

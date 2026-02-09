@@ -20,4 +20,8 @@ export class CreateDeliveryDto {
   @IsUUID()
   @IsNotEmpty()
   businessId: string;
+
+  @IsUUID()
+  @IsOptional()
+  preferredCourierId?: string;
 }
