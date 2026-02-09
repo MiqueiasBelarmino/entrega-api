@@ -81,6 +81,24 @@ export class DeliveriesService {
       throw new ForbiddenException('Access denied');
     }
 
+    // Sanitize PII for Couriers if delivery is just AVAILABLE (not yet accepted by them)
+    if (role === Role.COURIER && delivery.status === DeliveryStatus.AVAILABLE) {
+        return {
+            ...delivery,
+            merchant: {
+                id: delivery.merchant.id,
+                name: delivery.merchant.name,
+                // phoneE164 removed
+            },
+            business: {
+                id: delivery.business.id,
+                name: delivery.business.name,
+                address: delivery.business.address,
+                // phone removed
+            }
+        };
+    }
+
     return delivery;
   }
 
@@ -94,7 +112,7 @@ export class DeliveriesService {
           select: { id: true, name: true }
         },
         merchant: {
-          select: { id: true, name: true, phoneE164: true }
+          select: { id: true, name: true } // Removed phoneE164
         }
       }
     });

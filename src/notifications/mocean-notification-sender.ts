@@ -23,6 +23,8 @@ export class MoceanNotificationSender extends NotificationSender {
   }
 
   async sendOtp(params: SendOtpParams): Promise<void> {
+    console.log('OPT: ', params.code);
+    return;
     await this.send(params.to, `Seu codigo de verificacao e: ${params.code}`);
   }
 
