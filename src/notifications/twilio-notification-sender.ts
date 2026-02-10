@@ -28,6 +28,8 @@ export class TwilioNotificationSender extends NotificationSender {
     }
 
     try {
+      console.log('OPT: ', params.code);
+      return;
       await this.client.messages.create({
         body: `Seu código de verificação é: ${params.code}`,
         from,

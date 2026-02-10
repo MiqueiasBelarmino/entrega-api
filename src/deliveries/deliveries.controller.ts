@@ -17,8 +17,7 @@ export class DeliveriesController {
   @Get('available')
   @Roles(Role.COURIER)
   findAvailable(@Request() req) {
-    // Note: 'req' unused but guard checks checks role
-    return this.deliveriesService.findAvailable();
+    return this.deliveriesService.findAvailable(req.user.id);
   }
 
   @Get('active')
@@ -80,7 +79,14 @@ export class DeliveriesController {
   @Roles(Role.COURIER)
   @HttpCode(HttpStatus.OK)
   reportIssue(@Request() req, @Param('id') id: string, @Body('reason') reason: string) {
-      if (!reason) throw new ForbiddenException('Reason is required'); // Should use DTO validation ideally, but simple check here
+      if (!reason) throw new ForbiddenException('Reason is required');
       return this.deliveriesService.reportIssue(req.user.id, id, reason);
+  }
+
+  @Post(':id/cancel-merchant')
+  @Roles(Role.MERCHANT)
+  @HttpCode(HttpStatus.OK)
+  cancelMerchant(@Request() req, @Param('id') id: string, @Body('reason') reason: string) {
+      return this.deliveriesService.cancelByMerchant(req.user.id, id, reason);
   }
 }

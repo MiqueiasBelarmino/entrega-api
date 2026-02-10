@@ -34,6 +34,13 @@ enum DeliveryStatus {
   ISSUE
 }
 
+enum CanceledBy {
+  COURIER
+  MERCHANT
+  ADMIN
+  SYSTEM
+}
+
 model User {
   id   String @id @default(uuid())
   name String
@@ -50,6 +57,7 @@ model User {
   // relations
   otpTokens  OtpToken[]
   businesses Business[] @relation("BusinessOwner")
+  pushSubscriptions PushSubscription[]
   
   // Delivery relations
   merchantDeliveries        Delivery[] @relation("MerchantDeliveries")
@@ -132,6 +140,7 @@ model Delivery {
 
   preferredCourierId String? @map("preferred_courier_id")
   preferredCourier   User?   @relation("PreferredCourierDeliveries", fields: [preferredCourierId], references: [id])
+  preferredUntil     DateTime? @map("preferred_until")
 
   status DeliveryStatus @default(AVAILABLE)
 
@@ -144,7 +153,12 @@ model Delivery {
   pickedUpAt  DateTime? @map("picked_up_at")
   completedAt DateTime? @map("completed_at")
   canceledAt  DateTime? @map("canceled_at")
-  
+  canceledBy  CanceledBy? @map("canceled_by")
+  cancelReason String?   @map("cancel_reason")
+
+  expiresAt   DateTime? @map("expires_at") // Deadline for AVAILABLE
+  acceptBy    DateTime? @map("accept_by")  // Deadline for PICKUP after ACCEPTED
+
   // [NEW] Issue reporting
   issueAt     DateTime? @map("issue_at")
   issueReason String?   @map("issue_reason")
@@ -169,4 +183,20 @@ model SystemConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_config")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@map("push_subscriptions")
 }
