@@ -8,4 +8,5 @@ export interface SendOtpParams {
 
 export abstract class NotificationSender {
   abstract sendOtp(params: SendOtpParams): Promise<void>;
+  abstract send(to: string, message: string): Promise<void>;
 }

@@ -10,4 +10,8 @@ export class ConsoleNotificationSender extends NotificationSender {
       `[OTP] Channel: ${params.channel} | To: ${params.to} | Code: ${params.code}`,
     );
   }
+
+  async send(to: string, message: string): Promise<void> {
+    this.logger.log(`[NOTIF] To: ${to} | Message: ${message}`);
+  }
 }

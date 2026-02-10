@@ -13,7 +13,6 @@ export class UsersService {
     role?: Role;
   }) {
 
-    console.log(data);
     return this.prisma.user.create({
       data: {
         name: data.name,
@@ -38,5 +37,12 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('Usuário não encontrado');
     return user;
+  }
+
+  async update(id: string, data: { name?: string; email?: string; role?: Role; isActive?: boolean }) {
+    return this.prisma.user.update({
+      where: { id },
+      data,
+    });
   }
 }

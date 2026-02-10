@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -24,6 +25,22 @@ enum BusinessStatus {
   BLOCKED
 }
 
+enum DeliveryStatus {
+  AVAILABLE
+  ACCEPTED
+  PICKED_UP
+  COMPLETED
+  CANCELED
+  ISSUE
+}
+
+enum CanceledBy {
+  COURIER
+  MERCHANT
+  ADMIN
+  SYSTEM
+}
+
 model User {
   id   String @id @default(uuid())
   name String
@@ -33,13 +50,23 @@ model User {
   email String? @unique
 
   isActive  Boolean  @default(true) @map("is_active")
+  isRoot    Boolean  @default(false) @map("is_root") // [NEW]
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // relations
   otpTokens  OtpToken[]
   businesses Business[] @relation("BusinessOwner")
+  pushSubscriptions PushSubscription[]
+  
+  // Delivery relations
+  merchantDeliveries        Delivery[] @relation("MerchantDeliveries")
+  courierDeliveries         Delivery[] @relation("CourierDeliveries")
+  preferredCourierDeliveries Delivery[] @relation("PreferredCourierDeliveries")
 
+  @@index([role])     // [NEW]
+  @@index([isActive]) // [NEW]
+  @@index([createdAt])// [NEW]
   @@map("users")
 }
 
@@ -72,7 +99,6 @@ model Category {
   slug String @unique
 
   businesses Business[]
-
   @@map("categories")
 }
 
@@ -85,14 +111,92 @@ model Business {
   description String?
   phone       String?
   address     String?
+  defaultDeliveryPrice Decimal? @map("default_delivery_price") @db.Decimal(10, 2)
   status      BusinessStatus @default(PENDING)
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @updatedAt @map("updated_at")
 
   owner    User     @relation("BusinessOwner", fields: [ownerId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])
+  
+  deliveries Delivery[]
 
   @@index([ownerId])
   @@index([categoryId])
   @@map("businesses")
+}
+
+model Delivery {
+  id String @id @default(uuid())
+
+  businessId String   @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id])
+
+  merchantId String @map("merchant_id")
+  merchant   User   @relation("MerchantDeliveries", fields: [merchantId], references: [id])
+
+  courierId String? @map("courier_id")
+  courier   User?   @relation("CourierDeliveries", fields: [courierId], references: [id])
+
+  preferredCourierId String? @map("preferred_courier_id")
+  preferredCourier   User?   @relation("PreferredCourierDeliveries", fields: [preferredCourierId], references: [id])
+  preferredUntil     DateTime? @map("preferred_until")
+
+  status DeliveryStatus @default(AVAILABLE)
+
+  pickupAddress  String  @map("pickup_address")
+  dropoffAddress String  @map("dropoff_address")
+  price          Decimal @db.Decimal(10, 2)
+  notes          String?
+
+  acceptedAt  DateTime? @map("accepted_at")
+  pickedUpAt  DateTime? @map("picked_up_at")
+  completedAt DateTime? @map("completed_at")
+  canceledAt  DateTime? @map("canceled_at")
+  canceledBy  CanceledBy? @map("canceled_by")
+  cancelReason String?   @map("cancel_reason")
+
+  expiresAt   DateTime? @map("expires_at") // Deadline for AVAILABLE
+  acceptBy    DateTime? @map("accept_by")  // Deadline for PICKUP after ACCEPTED
+
+  // [NEW] Issue reporting
+  issueAt     DateTime? @map("issue_at")
+  issueReason String?   @map("issue_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([merchantId]) // [NEW]
+  @@index([courierId])  // [NEW]
+  @@index([businessId]) // [NEW]
+  @@index([createdAt])
+
+  @@map("deliveries")
+}
+
+model SystemConfig {
+  key   String @id
+  value String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@map("push_subscriptions")
 }
