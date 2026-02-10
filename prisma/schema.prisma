@@ -57,6 +57,7 @@ model User {
   // relations
   otpTokens  OtpToken[]
   businesses Business[] @relation("BusinessOwner")
+  pushSubscriptions PushSubscription[]
   
   // Delivery relations
   merchantDeliveries        Delivery[] @relation("MerchantDeliveries")
@@ -182,4 +183,20 @@ model SystemConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_config")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@map("push_subscriptions")
 }

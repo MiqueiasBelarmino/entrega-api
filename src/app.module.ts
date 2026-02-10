@@ -13,6 +13,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { ActiveUserGuard } from './auth/guards/active-user.guard';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -21,8 +22,10 @@ import { ActiveUserGuard } from './auth/guards/active-user.guard';
     BusinessModule,
     DeliveriesModule,
     NotificationsModule,
+    NotificationsModule,
     SchedulerModule,
     AdminModule,
+    PushModule,
   ],
   controllers: [AppController, SystemController],
   providers: [
