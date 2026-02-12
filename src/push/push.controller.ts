@@ -5,7 +5,7 @@ import { Request } from 'express';
 
 interface AuthenticatedRequest extends Request {
   user: {
-    userId: string;
+    id: string;
     role: string;
   };
 }
@@ -22,14 +22,14 @@ export class PushController {
 
   @Post('subscribe')
   subscribe(@Req() req: AuthenticatedRequest, @Body() body: PushSubscriptionDto) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const userAgent = req.headers['user-agent'];
     return this.pushService.addSubscription(userId, body, userAgent);
   }
 
   @Post('unsubscribe')
   unsubscribe(@Req() req: AuthenticatedRequest, @Body() body: { endpoint: string }) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     return this.pushService.removeSubscription(userId, body.endpoint);
   }
 }
