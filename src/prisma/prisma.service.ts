@@ -10,9 +10,10 @@ export class PrismaService
     super({
       datasources: {
         db: {
-          url: process.env.DATABASE_URL_POOLING,
+          url: process.env.DATABASE_URL_POOLING || process.env.DATABASE_URL,
         },
       },
+      log: ['error', 'warn'],
     });
   }
 
