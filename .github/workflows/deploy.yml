@@ -1,0 +1,12 @@
+name: Deploy API
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamando Webhook de Deploy
+        run: |
+          curl -X POST "http://167.86.124.193/deploy-now?auth=${{ secrets.DEPLOY_PASSWORD }}&project=api"
