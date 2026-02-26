@@ -14,11 +14,6 @@ enum Role {
   COURIER
 }
 
-enum OtpChannel {
-  SMS
-  WHATSAPP
-}
-
 enum BusinessStatus {
   PENDING
   ACTIVE
@@ -76,7 +71,6 @@ model OtpToken {
   user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   codeHash   String     @map("code_hash")
-  channel    OtpChannel
   expiresAt  DateTime   @map("expires_at")
   consumedAt DateTime?  @map("consumed_at")
   attempts   Int        @default(0)
@@ -200,3 +194,26 @@ model PushSubscription {
   @@index([userId])
   @@map("push_subscriptions")
 }
+
+enum ProviderStatus {
+  ACTIVE
+  DISABLED
+  BLOCKED
+}
+
+model NotificationProvider {
+  id           String         @id @default(uuid())
+  name         String
+  providerKey  String         @unique @map("provider_key")
+  status       ProviderStatus @default(DISABLED)
+  priority     Int            @default(0)
+  maxRetries   Int            @default(3)      @map("max_retries")
+  retryDelayMs Int            @default(1000)   @map("retry_delay_ms")
+  timeoutMs    Int            @default(5000)   @map("timeout_ms")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("notification_providers")
+}
+
