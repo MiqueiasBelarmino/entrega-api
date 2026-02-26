@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthStartDto } from './dto/auth-start.dto';
 import { AuthVerifyDto } from './dto/auth-verify.dto';
+import { RegisterMerchantDto } from './dto/register-merchant.dto';
 import { Public } from '../common/decorators/public.decorator';
 
 @Controller('auth')
@@ -14,6 +15,16 @@ export class AuthController {
   start(@Body() body: AuthStartDto, @Req() req: any) {
     return this.authService.startOtp({
       phone: body.phone,
+      requestIp: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
+
+  @Public()
+  @Post('register/merchant')
+  registerMerchant(@Body() body: RegisterMerchantDto, @Req() req: any) {
+    return this.authService.registerMerchant({
+      ...body,
       requestIp: req.ip,
       userAgent: req.headers['user-agent'],
     });
