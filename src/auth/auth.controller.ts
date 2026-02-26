@@ -14,7 +14,6 @@ export class AuthController {
   start(@Body() body: AuthStartDto, @Req() req: any) {
     return this.authService.startOtp({
       phone: body.phone,
-      channel: body.channel,
       requestIp: req.ip,
       userAgent: req.headers['user-agent'],
     });

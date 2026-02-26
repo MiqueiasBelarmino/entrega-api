@@ -24,6 +24,28 @@ async function main() {
     create: { name: 'Logística', slug: 'logistics' },
   });
 
+  // [NEW] Seed Notification Providers
+  await prisma.notificationProvider.upsert({
+    where: { providerKey: 'WHATSAPP_META' },
+    update: {
+      name: 'WhatsApp Cloud API (Meta)',
+      status: 'ACTIVE',
+      priority: 1,
+      maxRetries: 3,
+      retryDelayMs: 1000,
+      timeoutMs: 5000,
+    },
+    create: {
+      providerKey: 'WHATSAPP_META',
+      name: 'WhatsApp Cloud API (Meta)',
+      status: 'ACTIVE',
+      priority: 1,
+      maxRetries: 3,
+      retryDelayMs: 1000,
+      timeoutMs: 5000,
+    },
+  });
+
   // [NEW] Root Admin Seeding
   const rootPhone = process.env.ROOT_ADMIN_PHONE_E164;
   if (rootPhone) {

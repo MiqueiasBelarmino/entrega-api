@@ -21,4 +21,28 @@ export class SystemController {
         update: { value: body.value, updatedAt: new Date() }
     });
   }
+
+  @Get('providers')
+  async getProviders() {
+    return this.prisma.notificationProvider.findMany({
+      orderBy: { priority: 'asc' },
+    });
+  }
+
+  @Put('providers/:id')
+  async updateProvider(
+    @Param('id') id: string,
+    @Body() body: {
+      status?: 'ACTIVE' | 'DISABLED' | 'BLOCKED';
+      priority?: number;
+      maxRetries?: number;
+      retryDelayMs?: number;
+      timeoutMs?: number;
+    }
+  ) {
+    return this.prisma.notificationProvider.update({
+      where: { id },
+      data: body,
+    });
+  }
 }

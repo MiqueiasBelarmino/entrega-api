@@ -2,7 +2,7 @@ import { BadRequestException, HttpException, HttpStatus, Injectable, Unauthorize
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationSender } from '../notifications/notification-channel';
-import { OtpChannel, Role } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { normalizePhoneToE164BR } from '../common/phone/normalize-phone';
 import * as crypto from 'crypto';
 
@@ -36,7 +36,6 @@ export class AuthService {
 
   async startOtp(params: {
     phone: string;
-    channel: OtpChannel;
     requestIp?: string;
     userAgent?: string;
   }) {
@@ -62,7 +61,6 @@ export class AuthService {
       data: {
         userId: user.id,
         codeHash: this.hashOtp(code),
-        channel: params.channel,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 min
         sentTo: phoneE164,
         requestIp: params.requestIp,
@@ -73,7 +71,6 @@ export class AuthService {
     await this.notificationSender.sendOtp({
       to: phoneE164,
       code,
-      channel: params.channel === OtpChannel.SMS ? 'SMS' : 'WHATSAPP',
     });
 
     return { ok: true };
