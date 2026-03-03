@@ -3,7 +3,7 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role, DeliveryStatus, BusinessStatus } from '@prisma/client';
+import { Role, DeliveryStatus, BusinessStatus, CourierStatus } from '@prisma/client';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -72,5 +72,21 @@ export class AdminController {
       @Body() body: { role?: Role; isActive?: boolean }
   ) {
       return this.adminService.updateUser(id, body);
+  }
+
+  @Get('couriers')
+  findCouriers(
+      @Query('status') status?: CourierStatus,
+      @Query('query') query?: string
+  ) {
+      return this.adminService.findCouriers({ status, query });
+  }
+
+  @Patch('couriers/:id/status')
+  updateCourierStatus(
+      @Param('id') id: string,
+      @Body('status') status: CourierStatus
+  ) {
+      return this.adminService.updateCourierStatus(id, status);
   }
 }

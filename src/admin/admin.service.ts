@@ -1,6 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { DeliveryStatus, Prisma, Role, BusinessStatus } from '@prisma/client';
+import { DeliveryStatus, Prisma, Role, BusinessStatus, CourierStatus } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
@@ -195,6 +195,31 @@ export class AdminService {
       return this.prisma.user.update({
           where: { id },
           data
+      });
+  }
+
+  async findCouriers(params: { status?: CourierStatus; query?: string }) {
+      const where: Prisma.UserWhereInput = { role: Role.COURIER };
+      
+      if (params.status) where.status = params.status;
+      if (params.query) {
+           where.OR = [
+              { name: { contains: params.query, mode: 'insensitive' } },
+              { phoneE164: { contains: params.query } },
+              { cpf: { contains: params.query } }
+          ];
+      }
+
+      return this.prisma.user.findMany({
+          where,
+          orderBy: { createdAt: 'desc' }
+      });
+  }
+
+  async updateCourierStatus(id: string, status: CourierStatus) {
+      return this.prisma.user.update({
+          where: { id, role: Role.COURIER },
+          data: { status }
       });
   }
 }

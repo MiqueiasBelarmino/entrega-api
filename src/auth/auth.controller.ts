@@ -4,6 +4,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthStartDto } from './dto/auth-start.dto';
 import { AuthVerifyDto } from './dto/auth-verify.dto';
 import { RegisterMerchantDto } from './dto/register-merchant.dto';
+import { RegisterCourierDto } from './dto/register-courier.dto';
 import { Public } from '../common/decorators/public.decorator';
 
 @Controller('auth')
@@ -31,6 +32,16 @@ export class AuthController {
   }
 
   @Public()
+  @Post('register/courier')
+  registerCourier(@Body() body: RegisterCourierDto, @Req() req: any) {
+    return this.authService.registerCourier({
+      ...body,
+      requestIp: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
+
+  @Public()
   @Post('verify')
   verify(@Body() body: AuthVerifyDto) {
     return this.authService.verifyOtp({
@@ -38,8 +49,6 @@ export class AuthController {
       code: body.code,
     });
   }
-
-
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@Req() req: any) {

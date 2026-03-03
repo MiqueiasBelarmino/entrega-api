@@ -14,6 +14,12 @@ enum Role {
   COURIER
 }
 
+enum CourierStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum BusinessStatus {
   PENDING
   ACTIVE
@@ -46,6 +52,13 @@ model User {
 
   isActive  Boolean  @default(true) @map("is_active")
   isRoot    Boolean  @default(false) @map("is_root") // [NEW]
+
+  // Courier Specific Fields
+  cpf           String?   @unique
+  cnh           String?   @unique
+  vehiclePlate  String?   @map("vehicle_plate")
+  status        CourierStatus @default(PENDING) // Approval status
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

@@ -136,6 +136,9 @@ export class AuthService {
     name: string;
     requestIp?: string;
     userAgent?: string;
+    vehiclePlate?: string;
+    cpf?: string;
+    cnh?: string;
   }) {
     const phoneE164 = normalizePhoneToE164BR(params.phone);
 
@@ -152,6 +155,9 @@ export class AuthService {
         phoneE164,
         name: params.name,
         role: Role.COURIER,
+        vehiclePlate: params.vehiclePlate,
+        cpf: params.cpf,
+        cnh: params.cnh,
       },
     });
 
