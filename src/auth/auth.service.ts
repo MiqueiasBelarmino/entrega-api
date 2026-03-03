@@ -2,7 +2,7 @@ import { BadRequestException, HttpException, HttpStatus, Injectable, Unauthorize
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationSender } from '../notifications/notification-channel';
-import { Role } from '@prisma/client';
+import { Role, BusinessStatus } from '@prisma/client';
 import { normalizePhoneToE164BR } from '../common/phone/normalize-phone';
 import * as crypto from 'crypto';
 
@@ -41,12 +41,14 @@ export class AuthService {
   }) {
     const phoneE164 = normalizePhoneToE164BR(params.phone);
 
-    const user = await this.prisma.user.upsert({
+    const user = await this.prisma.user.findUnique({
       where: { phoneE164 },
-      create: { phoneE164, name: 'Usuário', role: Role.COURIER },
-      update: {},
       select: { id: true, phoneE164: true },
     });
+
+    if (!user) {
+      throw new UnauthorizedException('Número não cadastrado. Por favor, crie uma conta primeiro.');
+    }
 
     // rate limit simples: no máximo 3 OTPs nos últimos 15 min
     const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
@@ -65,6 +67,114 @@ export class AuthService {
         sentTo: phoneE164,
         requestIp: params.requestIp,
         userAgent: params.userAgent,
+      },
+    });
+
+    await this.notificationSender.sendOtp({
+      to: phoneE164,
+      code,
+    });
+
+    return { ok: true };
+  }
+
+  async registerMerchant(params: {
+    phone: string;
+    name: string;
+    businessName: string;
+    categoryId: string;
+    businessPhone?: string;
+    address?: string;
+    slug?: string;
+    requestIp?: string;
+    userAgent?: string;
+  }) {
+    const phoneE164 = normalizePhoneToE164BR(params.phone);
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { phoneE164 },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Número já cadastrado.');
+    }
+
+    // Gerar um slug se não for enviado. Simplificação com Date.now()
+    const finalSlug = params.slug || `${params.businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+
+    // Transaction to create User and Business
+    const user = await this.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          phoneE164,
+          name: params.name,
+          role: Role.MERCHANT,
+        },
+      });
+
+      await tx.business.create({
+        data: {
+          ownerId: newUser.id,
+          name: params.businessName,
+          slug: finalSlug,
+          categoryId: params.categoryId,
+          phone: params.businessPhone,
+          address: params.address,
+          status: BusinessStatus.PENDING,
+        },
+      });
+
+      return newUser;
+    });
+
+    // Start OTP flow automatically using internal method logic
+    return this.sendOtpToUser(user.id, phoneE164, params.requestIp, params.userAgent);
+  }
+
+  async registerCourier(params: {
+    phone: string;
+    name: string;
+    requestIp?: string;
+    userAgent?: string;
+  }) {
+    const phoneE164 = normalizePhoneToE164BR(params.phone);
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { phoneE164 },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Número já cadastrado.');
+    }
+
+    const user = await this.prisma.user.create({
+      data: {
+        phoneE164,
+        name: params.name,
+        role: Role.COURIER,
+      },
+    });
+
+    return this.sendOtpToUser(user.id, phoneE164, params.requestIp, params.userAgent);
+  }
+
+  private async sendOtpToUser(userId: string, phoneE164: string, requestIp?: string, userAgent?: string) {
+    const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const sentCount = await this.prisma.otpToken.count({
+      where: { userId, createdAt: { gte: fifteenMinAgo } },
+    });
+    if (sentCount >= 3) throw new HttpException('Muitas tentativas. Tente novamente mais tarde.', HttpStatus.TOO_MANY_REQUESTS);
+
+    const code = this.generateOtpCode();
+
+    await this.prisma.otpToken.create({
+      data: {
+        userId,
+        codeHash: this.hashOtp(code),
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 min
+        sentTo: phoneE164,
+        requestIp,
+        userAgent,
       },
     });
 
@@ -142,7 +252,7 @@ export class AuthService {
       where: { id: userId },
       include: {
         businesses: {
-          select: { id: true, name: true, slug: true, address: true, defaultDeliveryPrice: true }
+          select: { id: true, name: true, slug: true, address: true, status: true, defaultDeliveryPrice: true }
         }
       }
     });

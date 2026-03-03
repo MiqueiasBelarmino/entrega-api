@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role, BusinessStatus } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -11,7 +11,45 @@ export class UsersService {
     email?: string;
     phoneE164: string;
     role?: Role;
+    businessName?: string;
+    categoryId?: string;
+    businessPhone?: string;
+    address?: string;
   }) {
+    // If it's a merchant, create user and business in a transaction
+    if (data.role === Role.MERCHANT && data.businessName && data.categoryId) {
+       const bName = data.businessName;
+       const cId = data.categoryId;
+       const bPhone = data.businessPhone;
+       const bAddress = data.address;
+
+       return this.prisma.$transaction(async (tx) => {
+         const user = await tx.user.create({
+           data: {
+             name: data.name,
+             email: data.email,
+             phoneE164: data.phoneE164,
+             role: data.role,
+           },
+         });
+
+         const finalSlug = `${bName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+
+         await tx.business.create({
+           data: {
+             ownerId: user.id,
+             name: bName,
+             categoryId: cId,
+             slug: finalSlug,
+             phone: bPhone,
+             address: bAddress,
+             status: BusinessStatus.ACTIVE, // Created by admin = auto active
+           },
+         });
+
+         return user;
+       });
+    }
 
     return this.prisma.user.create({
       data: {

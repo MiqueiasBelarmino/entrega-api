@@ -24,6 +24,10 @@ export class UsersController {
       ...body,
       phoneE164,
       role: body.role,
+      businessName: body.businessName,
+      categoryId: body.categoryId,
+      businessPhone: body.businessPhone,
+      address: body.address,
     });
   }
 
