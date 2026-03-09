@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  MinLength,
+  MaxLength,
+  IsNumberString,
+  IsUUID,
+} from 'class-validator';
 
 export class RegisterMerchantDto {
   @IsString()
@@ -20,6 +28,10 @@ export class RegisterMerchantDto {
   @IsOptional()
   @IsString()
   businessPhone?: string;
+
+  @IsOptional()
+  @IsUUID()
+  businessNeighborhoodId?: string;
 
   @IsOptional()
   @IsString()

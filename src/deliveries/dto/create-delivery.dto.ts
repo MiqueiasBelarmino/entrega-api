@@ -24,4 +24,8 @@ export class CreateDeliveryDto {
   @IsUUID()
   @IsOptional()
   preferredCourierId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  destNeighborhoodId?: string;
 }

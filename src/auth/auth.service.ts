@@ -84,6 +84,7 @@ export class AuthService {
     businessName: string;
     categoryId: string;
     businessPhone?: string;
+    businessNeighborhoodId?: string;
     address?: string;
     slug?: string;
     requestIp?: string;
@@ -118,6 +119,7 @@ export class AuthService {
           name: params.businessName,
           slug: finalSlug,
           categoryId: params.categoryId,
+          neighborhoodId: params.businessNeighborhoodId,
           phone: params.businessPhone,
           address: params.address,
           status: BusinessStatus.PENDING,
@@ -258,7 +260,7 @@ export class AuthService {
       where: { id: userId },
       include: {
         businesses: {
-          select: { id: true, name: true, slug: true, address: true, status: true, defaultDeliveryPrice: true }
+          select: { id: true, name: true, slug: true, address: true, status: true, defaultDeliveryPrice: true, neighborhoodId: true }
         }
       }
     });

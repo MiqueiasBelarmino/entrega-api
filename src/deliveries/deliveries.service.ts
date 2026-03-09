@@ -42,6 +42,7 @@ export class DeliveriesService {
         businessId: dto.businessId,
         pickupAddress: dto.pickupAddress,
         dropoffAddress: dto.dropoffAddress,
+        destNeighborhoodId: dto.destNeighborhoodId,
         price: dto.price,
         notes: dto.notes,
         status: DeliveryStatus.AVAILABLE,
