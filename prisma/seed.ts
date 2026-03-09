@@ -66,6 +66,35 @@ async function main() {
   //   });
   // }
 
+  const zoneCentral = await prisma.deliveryZone.create({
+    data: { name: 'Zona Central', description: 'Região central da cidade' }
+  });
+  
+  const zoneSul = await prisma.deliveryZone.create({
+    data: { name: 'Zona Sul', description: 'Região sul' }
+  });
+
+  const neighborhoodCentro = await prisma.neighborhood.create({
+    data: { name: 'Centro', city: 'São Paulo', deliveryZoneId: zoneCentral.id }
+  });
+
+  const neighborhoodPaulista = await prisma.neighborhood.create({
+    data: { name: 'Bela Vista', city: 'São Paulo', deliveryZoneId: zoneCentral.id }
+  });
+
+  const neighborhoodMoema = await prisma.neighborhood.create({
+    data: { name: 'Moema', city: 'São Paulo', deliveryZoneId: zoneSul.id }
+  });
+
+  await prisma.zonePriceRule.createMany({
+    data: [
+      { originZoneId: zoneCentral.id, destZoneId: zoneCentral.id, price: 8.00 },
+      { originZoneId: zoneCentral.id, destZoneId: zoneSul.id, price: 15.00 },
+      { originZoneId: zoneSul.id, destZoneId: zoneSul.id, price: 10.00 },
+      { originZoneId: zoneSul.id, destZoneId: zoneCentral.id, price: 14.00 }
+    ]
+  });
+
   // const merchant = await prisma.user.upsert({
   //   where: { phoneE164: '+5511999999999' },
   //   update: {},
@@ -110,6 +139,7 @@ async function main() {
   //     ownerId: merchant.id,
   //     status: 'ACTIVE',
   //     address: 'Rua das Pizzas, 100',
+  //     neighborhoodId: neighborhoodCentro.id,
   //     phone: '+5511999999999',
   //     defaultDeliveryPrice: 15.00,
   //   },
@@ -122,6 +152,7 @@ async function main() {
   //     merchantId: merchant.id,
   //     pickupAddress: 'Rua das Pizzas, 100',
   //     dropoffAddress: 'Av. Paulista, 1500',
+  //     destNeighborhoodId: neighborhoodPaulista.id,
   //     price: 25.00,
   //     notes: 'Entregar na portaria',
   //     status: DeliveryStatus.AVAILABLE,
@@ -135,6 +166,7 @@ async function main() {
   //     merchantId: merchant.id,
   //     pickupAddress: 'Rua das Pizzas, 100',
   //     dropoffAddress: 'Rua Augusta, 500',
+  //     destNeighborhoodId: neighborhoodPaulista.id,
   //     price: 18.50,
   //     notes: 'Cuidado, quente',
   //     status: DeliveryStatus.ACCEPTED,
@@ -150,6 +182,7 @@ async function main() {
   //     merchantId: merchant.id,
   //     pickupAddress: 'Rua das Pizzas, 100',
   //     dropoffAddress: 'Rua da Consolação, 200',
+  //     destNeighborhoodId: neighborhoodPaulista.id,
   //     price: 30.00,
   //     status: DeliveryStatus.COMPLETED,
   //     courierId: courier02.id,

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, Min } from 'class-validator';
+import { IsString, IsOptional, IsNumber, Min, IsUUID } from 'class-validator';
 
 export class UpdateBusinessDto {
   @IsString()
@@ -12,6 +12,10 @@ export class UpdateBusinessDto {
   @IsString()
   @IsOptional()
   address?: string;
+
+  @IsUUID()
+  @IsOptional()
+  neighborhoodId?: string;
 
   @IsNumber()
   @Min(0)

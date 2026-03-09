@@ -118,6 +118,10 @@ model Business {
   description String?
   phone       String?
   address     String?
+  
+  neighborhoodId String?       @map("neighborhood_id")
+  neighborhood   Neighborhood? @relation(fields: [neighborhoodId], references: [id])
+
   defaultDeliveryPrice Decimal? @map("default_delivery_price") @db.Decimal(10, 2)
   status      BusinessStatus @default(PENDING)
   createdAt   DateTime       @default(now()) @map("created_at")
@@ -130,6 +134,7 @@ model Business {
 
   @@index([ownerId])
   @@index([categoryId])
+  @@index([neighborhoodId])
   @@map("businesses")
 }
 
@@ -153,6 +158,10 @@ model Delivery {
 
   pickupAddress  String  @map("pickup_address")
   dropoffAddress String  @map("dropoff_address")
+  
+  destNeighborhoodId String?       @map("dest_neighborhood_id")
+  destNeighborhood   Neighborhood? @relation(fields: [destNeighborhoodId], references: [id])
+
   price          Decimal @db.Decimal(10, 2)
   notes          String?
 
@@ -180,6 +189,57 @@ model Delivery {
   @@index([createdAt])
 
   @@map("deliveries")
+}
+
+model DeliveryZone {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+
+  neighborhoods Neighborhood[]
+  originRules   ZonePriceRule[] @relation("OriginZone")
+  destRules     ZonePriceRule[] @relation("DestZone")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("delivery_zones")
+}
+
+model Neighborhood {
+  id             String       @id @default(uuid())
+  name           String
+  city           String
+  deliveryZoneId String       @map("delivery_zone_id")
+  deliveryZone   DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
+
+  businesses Business[]
+  deliveries Delivery[] // Deliveries bound to this neighborhood as destination
+
+  isActive  Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([name, city])
+  @@map("neighborhoods")
+}
+
+model ZonePriceRule {
+  id           String       @id @default(uuid())
+  originZoneId String       @map("origin_zone_id")
+  originZone   DeliveryZone @relation("OriginZone", fields: [originZoneId], references: [id])
+  destZoneId   String       @map("dest_zone_id")
+  destZone     DeliveryZone @relation("DestZone", fields: [destZoneId], references: [id])
+  
+  price        Decimal      @db.Decimal(10, 2)
+  isActive     Boolean      @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([originZoneId, destZoneId])
+  @@map("zone_price_rules")
 }
 
 model SystemConfig {
