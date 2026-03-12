@@ -178,7 +178,7 @@ export class DeliveriesService {
         }
     };
 
-    const [inProgress, waiting] = await Promise.all([
+    const [inProgress, waiting, completed, canceled] = await Promise.all([
         // 1. Em andamento (PICKED_UP): pickedUpAt ASC
         this.prisma.delivery.findMany({
             where: { courierId, status: DeliveryStatus.PICKED_UP },
@@ -199,29 +199,29 @@ export class DeliveriesService {
             ],
             include: commonInclude
         }),
-        // // 3. Histórico — completadas (COMPLETED): completedAt DESC
-        // this.prisma.delivery.findMany({
-        //     where: { courierId, status: DeliveryStatus.COMPLETED },
-        //     orderBy: [
-        //         { completedAt: 'desc' },
-        //         { createdAt: 'asc' },
-        //         { id: 'asc' }
-        //     ],
-        //     include: commonInclude
-        // }),
-        // // 4. Histórico — canceladas (CANCELED): canceledAt DESC
-        // this.prisma.delivery.findMany({
-        //     where: { courierId, status: DeliveryStatus.CANCELED },
-        //     orderBy: [
-        //         { canceledAt: 'desc' },
-        //         { createdAt: 'asc' },
-        //         { id: 'asc' }
-        //     ],
-        //     include: commonInclude
-        // })
+        // 3. Histórico — completadas (COMPLETED): completedAt DESC
+        this.prisma.delivery.findMany({
+            where: { courierId, status: DeliveryStatus.COMPLETED },
+            orderBy: [
+                { completedAt: 'desc' },
+                { createdAt: 'asc' },
+                { id: 'asc' }
+            ],
+            include: commonInclude
+        }),
+        // 4. Histórico — canceladas (CANCELED): canceledAt DESC
+        this.prisma.delivery.findMany({
+            where: { courierId, status: DeliveryStatus.CANCELED },
+            orderBy: [
+                { canceledAt: 'desc' },
+                { createdAt: 'asc' },
+                { id: 'asc' }
+            ],
+            include: commonInclude
+        })
     ]);
 
-    return [...inProgress, ...waiting];
+    return [...inProgress, ...waiting, ...completed, ...canceled];
   }
 
   async accept(userId: string, id: string) {
