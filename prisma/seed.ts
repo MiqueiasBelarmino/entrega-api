@@ -30,41 +30,41 @@ async function main() {
     },
   });
 
-  // await prisma.notificationProvider.upsert({
-  //   where: { providerKey: 'WHATSAPP_META' },
-  //   update: {
-  //     name: 'WhatsApp Cloud API (Meta)',
-  //     status: 'ACTIVE',
-  //     priority: 1,
-  //     maxRetries: 3,
-  //     retryDelayMs: 1000,
-  //     timeoutMs: 5000,
-  //   },
-  //   create: {
-  //     providerKey: 'WHATSAPP_META',
-  //     name: 'WhatsApp Cloud API (Meta)',
-  //     status: 'ACTIVE',
-  //     priority: 1,
-  //     maxRetries: 3,
-  //     retryDelayMs: 1000,
-  //     timeoutMs: 5000,
-  //   },
-  // });
+  await prisma.notificationProvider.upsert({
+    where: { providerKey: 'WHATSAPP_META' },
+    update: {
+      name: 'WhatsApp Cloud API (Meta)',
+      status: 'ACTIVE',
+      priority: 1,
+      maxRetries: 3,
+      retryDelayMs: 1000,
+      timeoutMs: 5000,
+    },
+    create: {
+      providerKey: 'WHATSAPP_META',
+      name: 'WhatsApp Cloud API (Meta)',
+      status: 'ACTIVE',
+      priority: 1,
+      maxRetries: 3,
+      retryDelayMs: 1000,
+      timeoutMs: 5000,
+    },
+  });
 
-  // if (rootPhone) {
-  //   console.log(`Seeding Root Admin: ${rootPhone}`);
-  //   await prisma.user.upsert({
-  //     where: { phoneE164: rootPhone },
-  //     update: { role: Role.ADMIN, isRoot: true, isActive: true },
-  //     create: {
-  //       name: process.env.ROOT_ADMIN_NAME || 'Root Admin',
-  //       phoneE164: rootPhone,
-  //       role: Role.ADMIN,
-  //       isRoot: true,
-  //       isActive: true,
-  //     }
-  //   });
-  // }
+  if (rootPhone) {
+    console.log(`Seeding Root Admin: ${rootPhone}`);
+    await prisma.user.upsert({
+      where: { phoneE164: rootPhone },
+      update: { role: Role.ADMIN, isRoot: true, isActive: true },
+      create: {
+        name: process.env.ROOT_ADMIN_NAME || 'Root Admin',
+        phoneE164: rootPhone,
+        role: Role.ADMIN,
+        isRoot: true,
+        isActive: true,
+      }
+    });
+  }
 
   const zoneCentral = await prisma.deliveryZone.create({
     data: { name: 'Zona Central', description: 'Região central da cidade' }
@@ -74,16 +74,22 @@ async function main() {
     data: { name: 'Zona Sul', description: 'Região sul' }
   });
 
+  const citySP = await prisma.city.upsert({
+    where: { name_state: { name: 'São Paulo', state: 'SP' } },
+    update: {},
+    create: { name: 'São Paulo', state: 'SP' }
+  });
+
   const neighborhoodCentro = await prisma.neighborhood.create({
-    data: { name: 'Centro', city: 'São Paulo', deliveryZoneId: zoneCentral.id }
+    data: { name: 'Centro', cityId: citySP.id, deliveryZoneId: zoneCentral.id }
   });
 
   const neighborhoodPaulista = await prisma.neighborhood.create({
-    data: { name: 'Bela Vista', city: 'São Paulo', deliveryZoneId: zoneCentral.id }
+    data: { name: 'Bela Vista', cityId: citySP.id, deliveryZoneId: zoneCentral.id }
   });
 
   const neighborhoodMoema = await prisma.neighborhood.create({
-    data: { name: 'Moema', city: 'São Paulo', deliveryZoneId: zoneSul.id }
+    data: { name: 'Moema', cityId: citySP.id, deliveryZoneId: zoneSul.id }
   });
 
   await prisma.zonePriceRule.createMany({

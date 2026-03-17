@@ -7,7 +7,7 @@ export class CreateNeighborhoodDto {
 
   @IsString()
   @IsNotEmpty()
-  city: string;
+  cityId: string;
 
   @IsUUID()
   @IsNotEmpty()

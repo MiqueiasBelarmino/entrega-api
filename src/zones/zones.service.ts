@@ -45,7 +45,7 @@ export class ZonesService {
 
   async createNeighborhood(data: CreateNeighborhoodDto) {
     const existing = await this.prisma.neighborhood.findUnique({
-      where: { name_city: { name: data.name, city: data.city } },
+      where: { name_cityId: { name: data.name, cityId: data.cityId } },
     });
     if (existing) throw new ConflictException('Neighborhood already exists in this city');
     
@@ -75,11 +75,11 @@ export class ZonesService {
 
   async updateNeighborhood(id: string, data: UpdateNeighborhoodDto) {
     await this.findOneNeighborhood(id);
-    if (data.name || data.city) {
+    if (data.name || data.cityId) {
       const existing = await this.prisma.neighborhood.findFirst({
         where: {
           name: data.name,
-          city: data.city,
+          cityId: data.cityId,
           NOT: { id },
         },
       });
