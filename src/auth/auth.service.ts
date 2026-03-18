@@ -272,6 +272,9 @@ export class AuthService {
     return this.prisma.user.findUnique({
       where: { id: userId },
       include: {
+        city: {
+          select: { id: true, name: true }
+        },
         businesses: {
           select: { id: true, name: true, slug: true, address: true, status: true, defaultDeliveryPrice: true, neighborhoodId: true }
         }

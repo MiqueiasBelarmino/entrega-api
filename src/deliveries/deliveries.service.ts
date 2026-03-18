@@ -100,9 +100,13 @@ export class DeliveriesService {
     return delivery;
   }
 
-  async findAllMerchant(userId: string) {
+  async findAllMerchant(userId: string, businessId?: string) {
+    const where: Prisma.DeliveryWhereInput = { merchantId: userId };
+    if (businessId) {
+      where.businessId = businessId;
+    }
     return this.prisma.delivery.findMany({
-      where: { merchantId: userId },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         courier: {

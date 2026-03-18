@@ -35,4 +35,8 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   neighborhoodId?: string;
+
+  @IsString()
+  @IsOptional()
+  cityId?: string;
 }

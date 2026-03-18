@@ -28,6 +28,7 @@ export class UsersController {
       categoryId: body.categoryId,
       businessPhone: body.businessPhone,
       address: body.address,
+      neighborhoodId: body.neighborhoodId,
     });
   }
 

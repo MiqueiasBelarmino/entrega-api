@@ -16,6 +16,7 @@ export class UsersService {
     businessPhone?: string;
     address?: string;
     neighborhoodId?: string;
+    cityId?: string;
   }) {
     // If it's a merchant, create user and business in a transaction
     if (data.role === Role.MERCHANT && data.businessName && data.categoryId) {
@@ -64,6 +65,7 @@ export class UsersService {
         email: data.email,
         phoneE164: data.phoneE164,
         role: data.role || Role.COURIER,
+        cityId: data.cityId,
       },
     });
   }
