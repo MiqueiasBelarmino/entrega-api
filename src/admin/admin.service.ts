@@ -7,7 +7,7 @@ export class AdminService {
   constructor(private prisma: PrismaService) {}
 
   // 1. STATS
-  async getStats(range: 'today' | '7d' | '30d' = 'today') {
+  async getStats(range: 'today' | '7d' | '30d' = 'today', cityId?: string) {
     const now = new Date()
     const dateFrom = new Date(now)
 
@@ -21,7 +21,13 @@ export class AdminService {
         dateFrom.setHours(0, 0, 0, 0)
     }
 
-    const whereCreated = { createdAt: { gte: dateFrom } };
+    const whereCreated: any = { createdAt: { gte: dateFrom } };
+    const userWhere: any = { isActive: true };
+
+    if (cityId) {
+        whereCreated.business = { cityId };
+        userWhere.cityId = cityId;
+    }
 
     const [
         totalRevenue,
@@ -34,8 +40,8 @@ export class AdminService {
             where: { status: DeliveryStatus.COMPLETED, ...whereCreated }
         }),
         this.prisma.delivery.count({ where: whereCreated }),
-        this.prisma.user.count({ where: { role: Role.COURIER, isActive: true } }),
-        this.prisma.user.count({ where: { role: Role.MERCHANT, isActive: true } })
+        this.prisma.user.count({ where: { role: Role.COURIER, ...userWhere } }),
+        this.prisma.user.count({ where: { role: Role.MERCHANT, isActive: true } }) // Merchants are global or biz-scoped? Biz is scoped.
     ]);
 
     return {
@@ -52,6 +58,7 @@ export class AdminService {
       merchantId?: string;
       courierId?: string;
       businessId?: string;
+      cityId?: string;
       query?: string;
       dateFrom?: string;
       dateTo?: string;
@@ -62,6 +69,7 @@ export class AdminService {
     if (params.merchantId) where.merchantId = params.merchantId;
     if (params.courierId) where.courierId = params.courierId;
     if (params.businessId) where.businessId = params.businessId;
+    if (params.cityId) where.business = { cityId: params.cityId };
 
     if (params.dateFrom) {
         where.createdAt = { gte: new Date(params.dateFrom) };
@@ -133,10 +141,11 @@ export class AdminService {
   }
 
   // 3. BUSINESSES
-  async findAllBusinesses(params: { status?: BusinessStatus; query?: string }) {
+  async findAllBusinesses(params: { status?: BusinessStatus; query?: string; cityId?: string }) {
       const where: Prisma.BusinessWhereInput = {};
       
       if (params.status) where.status = params.status;
+      if (params.cityId) where.cityId = params.cityId;
       if (params.query) {
            where.OR = [
               { name: { contains: params.query, mode: 'insensitive' } },
@@ -147,7 +156,10 @@ export class AdminService {
       return this.prisma.business.findMany({
           where,
           orderBy: { createdAt: 'desc' },
-          include: { owner: { select: { name: true, phoneE164: true } } }
+          include: { 
+              owner: { select: { name: true, phoneE164: true } },
+              city: { select: { name: true } }
+          }
       });
   }
 
@@ -159,11 +171,12 @@ export class AdminService {
   }
 
   // 4. USERS
-  async findAllUsers(params: { role?: Role; isActive?: boolean; query?: string }) {
+  async findAllUsers(params: { role?: Role; isActive?: boolean; query?: string; cityId?: string }) {
      const where: Prisma.UserWhereInput = {};
 
      if (params.role) where.role = params.role;
      if (params.isActive !== undefined) where.isActive = params.isActive;
+     if (params.cityId) where.cityId = params.cityId;
      if (params.query) {
          where.OR = [
              { name: { contains: params.query, mode: 'insensitive' } },
@@ -174,11 +187,12 @@ export class AdminService {
 
      return this.prisma.user.findMany({
          where,
-         orderBy: { createdAt: 'desc' }
+         orderBy: { createdAt: 'desc' },
+         include: { city: { select: { name: true } } }
      });
   }
 
-  async updateUser(id: string, data: { role?: Role; isActive?: boolean }) {
+  async updateUser(id: string, data: { role?: Role; isActive?: boolean; cityId?: string }) {
       const user = await this.prisma.user.findUnique({ where: { id } });
       if (!user) throw new NotFoundException('User not found');
 
@@ -198,10 +212,11 @@ export class AdminService {
       });
   }
 
-  async findCouriers(params: { status?: CourierStatus; query?: string }) {
+  async findCouriers(params: { status?: CourierStatus; query?: string; cityId?: string }) {
       const where: Prisma.UserWhereInput = { role: Role.COURIER };
       
       if (params.status) where.status = params.status;
+      if (params.cityId) where.cityId = params.cityId;
       if (params.query) {
            where.OR = [
               { name: { contains: params.query, mode: 'insensitive' } },
@@ -212,7 +227,8 @@ export class AdminService {
 
       return this.prisma.user.findMany({
           where,
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          include: { city: { select: { name: true } } }
       });
   }
 

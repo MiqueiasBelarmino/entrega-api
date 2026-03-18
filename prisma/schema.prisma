@@ -123,6 +123,7 @@ model City {
 
   neighborhoods Neighborhood[]
   businesses    Business[]
+  zones         DeliveryZone[]
   couriers      User[]         @relation("CourierCity")
 
   @@unique([name, state])
@@ -219,6 +220,9 @@ model DeliveryZone {
   name        String
   description String?
 
+  cityId String @map("city_id")
+  city   City   @relation(fields: [cityId], references: [id])
+
   neighborhoods Neighborhood[]
   originRules   ZonePriceRule[] @relation("OriginZone")
   destRules     ZonePriceRule[] @relation("DestZone")
@@ -226,6 +230,7 @@ model DeliveryZone {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([cityId])
   @@map("delivery_zones")
 }
 

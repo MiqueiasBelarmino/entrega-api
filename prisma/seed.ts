@@ -66,18 +66,18 @@ async function main() {
     });
   }
 
-  const zoneCentral = await prisma.deliveryZone.create({
-    data: { name: 'Zona Central', description: 'Região central da cidade' }
-  });
-  
-  const zoneSul = await prisma.deliveryZone.create({
-    data: { name: 'Zona Sul', description: 'Região sul' }
-  });
-
   const citySP = await prisma.city.upsert({
     where: { name_state: { name: 'São Paulo', state: 'SP' } },
     update: {},
     create: { name: 'São Paulo', state: 'SP' }
+  });
+
+  const zoneCentral = await prisma.deliveryZone.create({
+    data: { name: 'Zona Central', description: 'Região central da cidade', cityId: citySP.id }
+  });
+  
+  const zoneSul = await prisma.deliveryZone.create({
+    data: { name: 'Zona Sul', description: 'Região sul', cityId: citySP.id }
   });
 
   const neighborhoodCentro = await prisma.neighborhood.create({
