@@ -15,6 +15,8 @@ export class UsersService {
     categoryId?: string;
     businessPhone?: string;
     address?: string;
+    neighborhoodId?: string;
+    cityId?: string;
   }) {
     // If it's a merchant, create user and business in a transaction
     if (data.role === Role.MERCHANT && data.businessName && data.categoryId) {
@@ -22,6 +24,10 @@ export class UsersService {
        const cId = data.categoryId;
        const bPhone = data.businessPhone;
        const bAddress = data.address;
+       
+       if (!data.neighborhoodId) throw new NotFoundException('Bairro é obrigatório para lojistas');
+       const n = await this.prisma.neighborhood.findUnique({ where: { id: data.neighborhoodId }});
+       if (!n) throw new NotFoundException('Bairro não encontrado');
 
        return this.prisma.$transaction(async (tx) => {
          const user = await tx.user.create({
@@ -43,6 +49,8 @@ export class UsersService {
              slug: finalSlug,
              phone: bPhone,
              address: bAddress,
+             neighborhoodId: n.id,
+             cityId: n.cityId,
              status: BusinessStatus.ACTIVE, // Created by admin = auto active
            },
          });
@@ -57,6 +65,7 @@ export class UsersService {
         email: data.email,
         phoneE164: data.phoneE164,
         role: data.role || Role.COURIER,
+        cityId: data.cityId,
       },
     });
   }

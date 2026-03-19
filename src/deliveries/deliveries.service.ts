@@ -33,6 +33,21 @@ export class DeliveriesService {
       throw new ForbiddenException('You do not own this business');
     }
 
+    // Validate City Consistency: Pickup and Dropoff must be in the same city
+    // Business now has cityId directly.
+    const destNeighborhood = await this.prisma.neighborhood.findUnique({
+        where: { id: dto.destNeighborhoodId },
+        select: { cityId: true }
+    });
+
+    if (!destNeighborhood) {
+        throw new NotFoundException('Destination neighborhood not found');
+    }
+
+    if (destNeighborhood.cityId !== business.cityId) {
+        throw new BadRequestException('Entrega entre cidades diferentes não é permitida no momento.');
+    }
+
     const preferredUntil = dto.preferredCourierId 
       ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes window
       : null;
@@ -62,9 +77,13 @@ export class DeliveriesService {
            routeTo: '/courier'
        });
     } else {
-        // Broadcast to all active couriers (MVP approach - could be geo-filtered later)
+        // Broadcast to all active couriers in the SAME CITY
         const activeCouriers = await this.prisma.user.findMany({
-            where: { role: Role.COURIER, isActive: true },
+            where: { 
+                role: Role.COURIER, 
+                isActive: true,
+                cityId: business.cityId
+            },
             select: { id: true }
         });
         const courierIds = activeCouriers.map(c => c.id);
@@ -82,9 +101,13 @@ export class DeliveriesService {
     return delivery;
   }
 
-  async findAllMerchant(userId: string) {
+  async findAllMerchant(userId: string, businessId?: string) {
+    const where: Prisma.DeliveryWhereInput = { merchantId: userId };
+    if (businessId) {
+      where.businessId = businessId;
+    }
     return this.prisma.delivery.findMany({
-      where: { merchantId: userId },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         courier: {
@@ -148,9 +171,22 @@ export class DeliveriesService {
 
   // Courier methods
   async findAvailable(userId: string) {
+    // 1. Get courier's city
+    const courier = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { cityId: true }
+    });
+
+    if (!courier || !courier.cityId) {
+        return [];
+    }
+
     return this.prisma.delivery.findMany({
       where: { 
           status: DeliveryStatus.AVAILABLE,
+          business: {
+              cityId: courier.cityId
+          },
           OR: [
               { preferredCourierId: null },
               { preferredCourierId: userId },

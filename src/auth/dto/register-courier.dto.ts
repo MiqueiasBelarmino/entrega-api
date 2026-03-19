@@ -20,5 +20,9 @@ export class RegisterCourierDto {
   @IsOptional()
   @IsString()
   cnh?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  cityId: string;
 }
 

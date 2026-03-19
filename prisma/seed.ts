@@ -30,70 +30,84 @@ async function main() {
     },
   });
 
-  // await prisma.notificationProvider.upsert({
-  //   where: { providerKey: 'WHATSAPP_META' },
-  //   update: {
-  //     name: 'WhatsApp Cloud API (Meta)',
-  //     status: 'ACTIVE',
-  //     priority: 1,
-  //     maxRetries: 3,
-  //     retryDelayMs: 1000,
-  //     timeoutMs: 5000,
-  //   },
-  //   create: {
-  //     providerKey: 'WHATSAPP_META',
-  //     name: 'WhatsApp Cloud API (Meta)',
-  //     status: 'ACTIVE',
-  //     priority: 1,
-  //     maxRetries: 3,
-  //     retryDelayMs: 1000,
-  //     timeoutMs: 5000,
-  //   },
-  // });
-
-  // if (rootPhone) {
-  //   console.log(`Seeding Root Admin: ${rootPhone}`);
-  //   await prisma.user.upsert({
-  //     where: { phoneE164: rootPhone },
-  //     update: { role: Role.ADMIN, isRoot: true, isActive: true },
-  //     create: {
-  //       name: process.env.ROOT_ADMIN_NAME || 'Root Admin',
-  //       phoneE164: rootPhone,
-  //       role: Role.ADMIN,
-  //       isRoot: true,
-  //       isActive: true,
-  //     }
-  //   });
-  // }
-
-  const zoneCentral = await prisma.deliveryZone.create({
-    data: { name: 'Zona Central', description: 'Região central da cidade' }
+  await prisma.notificationProvider.upsert({
+    where: { providerKey: 'WHATSAPP_META' },
+    update: {
+      name: 'WhatsApp Cloud API (Meta)',
+      status: 'ACTIVE',
+      priority: 1,
+      maxRetries: 3,
+      retryDelayMs: 1000,
+      timeoutMs: 5000,
+    },
+    create: {
+      providerKey: 'WHATSAPP_META',
+      name: 'WhatsApp Cloud API (Meta)',
+      status: 'ACTIVE',
+      priority: 1,
+      maxRetries: 3,
+      retryDelayMs: 1000,
+      timeoutMs: 5000,
+    },
   });
+
+  if (rootPhone) {
+    console.log(`Seeding Root Admin: ${rootPhone}`);
+    await prisma.user.upsert({
+      where: { phoneE164: rootPhone },
+      update: { role: Role.ADMIN, isRoot: true, isActive: true },
+      create: {
+        name: process.env.ROOT_ADMIN_NAME || 'Root Admin',
+        phoneE164: rootPhone,
+        role: Role.ADMIN,
+        isRoot: true,
+        isActive: true,
+      }
+    });
+  }
+
+  const citySP = await prisma.city.upsert({
+    where: { name_state: { name: 'São Paulo', state: 'SP' } },
+    update: {},
+    create: { name: 'São Paulo', state: 'SP' }
+  });
+
+  // Check if SP zones already exist to avoid duplicates if re-running
+  let zoneCentral = await prisma.deliveryZone.findFirst({ where: { name: 'Zona Central', cityId: citySP.id } });
+  if (!zoneCentral) {
+    zoneCentral = await prisma.deliveryZone.create({
+      data: { name: 'Zona Central', description: 'Região central da cidade', cityId: citySP.id }
+    });
+  }
   
-  const zoneSul = await prisma.deliveryZone.create({
-    data: { name: 'Zona Sul', description: 'Região sul' }
+  let zoneSul = await prisma.deliveryZone.findFirst({ where: { name: 'Zona Sul', cityId: citySP.id } });
+  if (!zoneSul) {
+    zoneSul = await prisma.deliveryZone.create({
+      data: { name: 'Zona Sul', description: 'Região sul', cityId: citySP.id }
+    });
+  }
+
+  await prisma.neighborhood.upsert({
+    where: { name_cityId: { name: 'Centro', cityId: citySP.id } },
+    update: { deliveryZoneId: zoneCentral.id },
+    create: { name: 'Centro', cityId: citySP.id, deliveryZoneId: zoneCentral.id }
   });
 
-  const neighborhoodCentro = await prisma.neighborhood.create({
-    data: { name: 'Centro', city: 'São Paulo', deliveryZoneId: zoneCentral.id }
+  await prisma.neighborhood.upsert({
+    where: { name_cityId: { name: 'Bela Vista', cityId: citySP.id } },
+    update: { deliveryZoneId: zoneCentral.id },
+    create: { name: 'Bela Vista', cityId: citySP.id, deliveryZoneId: zoneCentral.id }
   });
 
-  const neighborhoodPaulista = await prisma.neighborhood.create({
-    data: { name: 'Bela Vista', city: 'São Paulo', deliveryZoneId: zoneCentral.id }
+  await prisma.neighborhood.upsert({
+    where: { name_cityId: { name: 'Moema', cityId: citySP.id } },
+    update: { deliveryZoneId: zoneSul.id },
+    create: { name: 'Moema', cityId: citySP.id, deliveryZoneId: zoneSul.id }
   });
 
-  const neighborhoodMoema = await prisma.neighborhood.create({
-    data: { name: 'Moema', city: 'São Paulo', deliveryZoneId: zoneSul.id }
-  });
-
-  await prisma.zonePriceRule.createMany({
-    data: [
-      { originZoneId: zoneCentral.id, destZoneId: zoneCentral.id, price: 8.00 },
-      { originZoneId: zoneCentral.id, destZoneId: zoneSul.id, price: 15.00 },
-      { originZoneId: zoneSul.id, destZoneId: zoneSul.id, price: 10.00 },
-      { originZoneId: zoneSul.id, destZoneId: zoneCentral.id, price: 14.00 }
-    ]
-  });
+  // const neighborhoodMoema = await prisma.neighborhood.create({
+  //   data: { name: 'Moema', cityId: citySP.id, deliveryZoneId: zoneSul.id }
+  // });
 
   // const merchant = await prisma.user.upsert({
   //   where: { phoneE164: '+5511999999999' },
