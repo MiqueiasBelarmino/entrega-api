@@ -72,6 +72,10 @@ model User {
   courierDeliveries         Delivery[] @relation("CourierDeliveries")
   preferredCourierDeliveries Delivery[] @relation("PreferredCourierDeliveries")
 
+  // Rating relations
+  reviewsGiven              Rating[]   @relation("ReviewsGiven")
+  reviewsReceived           Rating[]   @relation("ReviewsReceived")
+
   @@index([role])     // [NEW]
   @@index([isActive]) // [NEW]
   @@index([createdAt])// [NEW]
@@ -178,6 +182,9 @@ model Delivery {
   // [NEW] Issue reporting
   issueAt     DateTime? @map("issue_at")
   issueReason String?   @map("issue_reason")
+
+  // Rating relations
+  ratings     Rating[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -288,5 +295,30 @@ model NotificationProvider {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("notification_providers")
+}
+
+model Rating {
+  id          String   @id @default(uuid())
+  deliveryId  String   @map("delivery_id")
+  delivery    Delivery @relation(fields: [deliveryId], references: [id])
+  
+  reviewerId  String   @map("reviewer_id")
+  reviewer    User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  
+  reviewedId  String   @map("reviewed_id")
+  reviewed    User     @relation("ReviewsReceived", fields: [reviewedId], references: [id])
+
+  role        Role     // MERCHANT ou COURIER
+
+  score       Int      // 1 a 5
+  tags        String[] // ["rápido", "atrasado"]
+  comment     String?
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([deliveryId, reviewerId])
+  @@index([reviewedId])
+  @@index([deliveryId])
+  @@map("ratings")
 }
 
