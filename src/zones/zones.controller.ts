@@ -91,8 +91,8 @@ export class ZonesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get('admin/zones/price-rules')
-  findAllPriceRules() {
-    return this.zonesService.findAllPriceRules();
+  findAllPriceRules(@Query('cityId') cityId?: string) {
+    return this.zonesService.findAllPriceRules(cityId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

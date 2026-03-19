@@ -128,8 +128,14 @@ export class ZonesService {
     });
   }
 
-  async findAllPriceRules() {
+  async findAllPriceRules(cityId?: string) {
+    const where: any = {};
+    if (cityId) {
+      where.originZone = { cityId };
+    }
+    
     return this.prisma.zonePriceRule.findMany({
+      where,
       include: {
         originZone: true,
         destZone: true,
