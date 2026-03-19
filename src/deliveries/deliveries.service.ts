@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException,
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDeliveryDto } from './dto/create-delivery.dto';
 import { DeliveryStatus, Prisma, Role } from '@prisma/client';
+import { HistoryPeriod } from './dto/history-query.dto';
 import { NotificationSender } from '../notifications/notification-channel';
 
 import { PushService } from '../push/push.service';
@@ -167,7 +168,6 @@ export class DeliveriesService {
       }
     });
   }
-
   async findByCourier(courierId: string) {
     const commonInclude = {
         business: {
@@ -222,6 +222,69 @@ export class DeliveriesService {
     ]);
 
     return [...inProgress, ...waiting, ...completed, ...canceled];
+  }
+
+  async getCourierHistory(courierId: string, period: HistoryPeriod) {
+    const now = new Date();
+    // Brazil Timezone offset (UTC-3) - simplistic approach for MVP
+    // Better would be using a lib or setting TZ in env, but let's calculate based on UTC for now
+    // and adjust for standard BRT.
+    
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    let endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    if (period === HistoryPeriod.YESTERDAY) {
+      startDate.setDate(startDate.getDate() - 1);
+      endDate.setDate(endDate.getDate() - 1);
+    } else if (period === HistoryPeriod.WEEK) {
+      // Monday start
+      const day = startDate.getDay();
+      const diff = startDate.getDate() - day + (day === 0 ? -6 : 1);
+      startDate.setDate(diff);
+    } else if (period === HistoryPeriod.MONTH) {
+      startDate.setDate(startDate.getDate() - 30);
+    }
+
+    const deliveries = await this.prisma.delivery.findMany({
+      where: {
+        courierId,
+        status: DeliveryStatus.COMPLETED,
+        completedAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        business: {
+          select: { name: true },
+        },
+        destNeighborhood: {
+          select: { name: true },
+        },
+      },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    const stats = deliveries.reduce(
+      (acc, d) => {
+        acc.totalEarnings += Number(d.price);
+        acc.deliveryCount += 1;
+        return acc;
+      },
+      { totalEarnings: 0, deliveryCount: 0 },
+    );
+
+    const averageTicket = stats.deliveryCount > 0 ? stats.totalEarnings / stats.deliveryCount : 0;
+
+    return {
+      deliveries,
+      summary: {
+        ...stats,
+        averageTicket,
+      },
+    };
   }
 
   async accept(userId: string, id: string) {
