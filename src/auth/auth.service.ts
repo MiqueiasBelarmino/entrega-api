@@ -276,7 +276,7 @@ export class AuthService {
           select: { id: true, name: true }
         },
         businesses: {
-          select: { id: true, name: true, slug: true, address: true, status: true, defaultDeliveryPrice: true, neighborhoodId: true }
+          select: { id: true, name: true, slug: true, address: true, status: true, defaultDeliveryPrice: true, neighborhoodId: true, cityId: true }
         }
       }
     });
