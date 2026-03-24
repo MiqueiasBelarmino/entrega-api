@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 
@@ -31,12 +31,20 @@ export class BusinessService {
       throw new ForbiddenException('You do not own this business');
     }
 
+    const dataToUpdate: any = { ...dto };
+    if (dto.neighborhoodId) {
+      const neighborhood = await this.prisma.neighborhood.findUnique({
+        where: { id: dto.neighborhoodId },
+      });
+      if (!neighborhood) {
+        throw new BadRequestException('Bairro fornecido inválido.');
+      }
+      dataToUpdate.cityId = neighborhood.cityId;
+    }
+
     return this.prisma.business.update({
       where: { id: businessId },
-      data: {
-        ...dto,
-        // Ensure decimal is handled if needed, but Prisma usually handles number -> Decimal
-      },
+      data: dataToUpdate,
     });
   }
 }

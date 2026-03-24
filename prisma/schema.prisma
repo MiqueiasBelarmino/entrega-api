@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
@@ -47,50 +47,57 @@ model User {
   name String
   role Role   @default(COURIER)
 
-  phoneE164 String @unique @map("phone_e164")
-  email String? @unique
+  phoneE164 String  @unique @map("phone_e164")
+  email     String? @unique
 
-  isActive  Boolean  @default(true) @map("is_active")
-  isRoot    Boolean  @default(false) @map("is_root") // [NEW]
+  isActive Boolean @default(true) @map("is_active")
+  isRoot   Boolean @default(false) @map("is_root") // [NEW]
 
   // Courier Specific Fields
-  cpf           String?   @unique
-  cnh           String?   @unique
-  vehiclePlate  String?   @map("vehicle_plate")
-  status        CourierStatus @default(PENDING) // Approval status
+  cpf          String?       @unique
+  cnh          String?       @unique
+  vehiclePlate String?       @map("vehicle_plate")
+  status       CourierStatus @default(PENDING) // Approval status
+
+  cityId String? @map("city_id")
+  city   City?   @relation("CourierCity", fields: [cityId], references: [id])
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // relations
-  otpTokens  OtpToken[]
-  businesses Business[] @relation("BusinessOwner")
+  otpTokens         OtpToken[]
+  businesses        Business[]         @relation("BusinessOwner")
   pushSubscriptions PushSubscription[]
-  
+
   // Delivery relations
-  merchantDeliveries        Delivery[] @relation("MerchantDeliveries")
-  courierDeliveries         Delivery[] @relation("CourierDeliveries")
+  merchantDeliveries         Delivery[] @relation("MerchantDeliveries")
+  courierDeliveries          Delivery[] @relation("CourierDeliveries")
   preferredCourierDeliveries Delivery[] @relation("PreferredCourierDeliveries")
+
+  // Rating relations
+  reviewsGiven              Rating[]   @relation("ReviewsGiven")
+  reviewsReceived           Rating[]   @relation("ReviewsReceived")
 
   @@index([role])     // [NEW]
   @@index([isActive]) // [NEW]
-  @@index([createdAt])// [NEW]
+  @@index([createdAt]) // [NEW]
   @@map("users")
 }
 
 model OtpToken {
-  id        String @id @default(uuid())
-  userId    String @map("user_id")
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  codeHash   String     @map("code_hash")
-  expiresAt  DateTime   @map("expires_at")
-  consumedAt DateTime?  @map("consumed_at")
-  attempts   Int        @default(0)
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  attempts   Int       @default(0)
 
-  sentTo     String     @map("sent_to") // +55...
-  requestIp  String?    @map("request_ip")
-  userAgent  String?    @map("user_agent")
+  sentTo    String  @map("sent_to") // +55...
+  requestIp String? @map("request_ip")
+  userAgent String? @map("user_agent")
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -99,41 +106,63 @@ model OtpToken {
   @@map("otp_tokens")
 }
 
-
 model Category {
   id   String @id @default(uuid())
   name String
   slug String @unique
 
   businesses Business[]
+
   @@map("categories")
 }
 
+model City {
+  id       String  @id @default(uuid())
+  name     String
+  state    String
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  neighborhoods Neighborhood[]
+  businesses    Business[]
+  zones         DeliveryZone[]
+  couriers      User[]         @relation("CourierCity")
+
+  @@unique([name, state])
+  @@map("cities")
+}
+
 model Business {
-  id          String         @id @default(uuid())
-  ownerId     String         @map("owner_id")
-  categoryId  String         @map("category_id")
+  id          String  @id @default(uuid())
+  ownerId     String  @map("owner_id")
+  categoryId  String  @map("category_id")
   name        String
-  slug        String         @unique
+  slug        String  @unique
   description String?
   phone       String?
   address     String?
-  
+
+  cityId String @map("city_id")
+  city   City   @relation(fields: [cityId], references: [id])
+
   neighborhoodId String?       @map("neighborhood_id")
   neighborhood   Neighborhood? @relation(fields: [neighborhoodId], references: [id])
 
-  defaultDeliveryPrice Decimal? @map("default_delivery_price") @db.Decimal(10, 2)
-  status      BusinessStatus @default(PENDING)
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  defaultDeliveryPrice Decimal?       @map("default_delivery_price") @db.Decimal(10, 2)
+  status               BusinessStatus @default(PENDING)
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
 
   owner    User     @relation("BusinessOwner", fields: [ownerId], references: [id])
   category Category @relation(fields: [categoryId], references: [id])
-  
+
   deliveries Delivery[]
 
   @@index([ownerId])
   @@index([categoryId])
+  @@index([cityId])
   @@index([neighborhoodId])
   @@map("businesses")
 }
@@ -150,51 +179,56 @@ model Delivery {
   courierId String? @map("courier_id")
   courier   User?   @relation("CourierDeliveries", fields: [courierId], references: [id])
 
-  preferredCourierId String? @map("preferred_courier_id")
-  preferredCourier   User?   @relation("PreferredCourierDeliveries", fields: [preferredCourierId], references: [id])
+  preferredCourierId String?   @map("preferred_courier_id")
+  preferredCourier   User?     @relation("PreferredCourierDeliveries", fields: [preferredCourierId], references: [id])
   preferredUntil     DateTime? @map("preferred_until")
 
   status DeliveryStatus @default(AVAILABLE)
 
-  pickupAddress  String  @map("pickup_address")
-  dropoffAddress String  @map("dropoff_address")
-  
+  pickupAddress  String @map("pickup_address")
+  dropoffAddress String @map("dropoff_address")
+
   destNeighborhoodId String?       @map("dest_neighborhood_id")
   destNeighborhood   Neighborhood? @relation(fields: [destNeighborhoodId], references: [id])
 
-  price          Decimal @db.Decimal(10, 2)
-  notes          String?
+  price Decimal @db.Decimal(10, 2)
+  notes String?
 
-  acceptedAt  DateTime? @map("accepted_at")
-  pickedUpAt  DateTime? @map("picked_up_at")
-  completedAt DateTime? @map("completed_at")
-  canceledAt  DateTime? @map("canceled_at")
-  canceledBy  CanceledBy? @map("canceled_by")
-  cancelReason String?   @map("cancel_reason")
+  acceptedAt   DateTime?   @map("accepted_at")
+  pickedUpAt   DateTime?   @map("picked_up_at")
+  completedAt  DateTime?   @map("completed_at")
+  canceledAt   DateTime?   @map("canceled_at")
+  canceledBy   CanceledBy? @map("canceled_by")
+  cancelReason String?     @map("cancel_reason")
 
-  expiresAt   DateTime? @map("expires_at") // Deadline for AVAILABLE
-  acceptBy    DateTime? @map("accept_by")  // Deadline for PICKUP after ACCEPTED
+  expiresAt DateTime? @map("expires_at") // Deadline for AVAILABLE
+  acceptBy  DateTime? @map("accept_by") // Deadline for PICKUP after ACCEPTED
 
   // [NEW] Issue reporting
   issueAt     DateTime? @map("issue_at")
   issueReason String?   @map("issue_reason")
+
+  // Rating relations
+  ratings     Rating[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([merchantId]) // [NEW]
-  @@index([courierId])  // [NEW]
+  @@index([courierId]) // [NEW]
   @@index([businessId]) // [NEW]
   @@index([createdAt])
-
   @@map("deliveries")
 }
 
 model DeliveryZone {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String
   description String?
+
+  cityId String @map("city_id")
+  city   City   @relation(fields: [cityId], references: [id])
 
   neighborhoods Neighborhood[]
   originRules   ZonePriceRule[] @relation("OriginZone")
@@ -203,25 +237,27 @@ model DeliveryZone {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([cityId])
   @@map("delivery_zones")
 }
 
 model Neighborhood {
   id             String       @id @default(uuid())
   name           String
-  city           String
+  cityId         String       @map("city_id")
+  city           City         @relation(fields: [cityId], references: [id])
   deliveryZoneId String       @map("delivery_zone_id")
   deliveryZone   DeliveryZone @relation(fields: [deliveryZoneId], references: [id])
 
   businesses Business[]
   deliveries Delivery[] // Deliveries bound to this neighborhood as destination
 
-  isActive  Boolean  @default(true) @map("is_active")
+  isActive Boolean @default(true) @map("is_active")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([name, city])
+  @@unique([name, cityId])
   @@map("neighborhoods")
 }
 
@@ -231,9 +267,9 @@ model ZonePriceRule {
   originZone   DeliveryZone @relation("OriginZone", fields: [originZoneId], references: [id])
   destZoneId   String       @map("dest_zone_id")
   destZone     DeliveryZone @relation("DestZone", fields: [destZoneId], references: [id])
-  
-  price        Decimal      @db.Decimal(10, 2)
-  isActive     Boolean      @default(true) @map("is_active")
+
+  price    Decimal @db.Decimal(10, 2)
+  isActive Boolean @default(true) @map("is_active")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -280,13 +316,38 @@ model NotificationProvider {
   providerKey  String         @unique @map("provider_key")
   status       ProviderStatus @default(DISABLED)
   priority     Int            @default(0)
-  maxRetries   Int            @default(3)      @map("max_retries")
-  retryDelayMs Int            @default(1000)   @map("retry_delay_ms")
-  timeoutMs    Int            @default(5000)   @map("timeout_ms")
+  maxRetries   Int            @default(3) @map("max_retries")
+  retryDelayMs Int            @default(1000) @map("retry_delay_ms")
+  timeoutMs    Int            @default(5000) @map("timeout_ms")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("notification_providers")
+}
+
+model Rating {
+  id          String   @id @default(uuid())
+  deliveryId  String   @map("delivery_id")
+  delivery    Delivery @relation(fields: [deliveryId], references: [id])
+  
+  reviewerId  String   @map("reviewer_id")
+  reviewer    User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  
+  reviewedId  String   @map("reviewed_id")
+  reviewed    User     @relation("ReviewsReceived", fields: [reviewedId], references: [id])
+
+  role        Role     // MERCHANT ou COURIER
+
+  score       Int      // 1 a 5
+  tags        String[] // ["rápido", "atrasado"]
+  comment     String?
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([deliveryId, reviewerId])
+  @@index([reviewedId])
+  @@index([deliveryId])
+  @@map("ratings")
 }
 

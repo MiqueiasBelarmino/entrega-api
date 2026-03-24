@@ -100,6 +100,16 @@ export class AuthService {
       throw new BadRequestException('Número já cadastrado.');
     }
 
+    if (!params.businessNeighborhoodId) {
+      throw new BadRequestException('Bairro da loja é obrigatório.');
+    }
+    const neighborhood = await this.prisma.neighborhood.findUnique({
+      where: { id: params.businessNeighborhoodId },
+    });
+    if (!neighborhood) {
+      throw new BadRequestException('Bairro fornecido inválido.');
+    }
+
     // Gerar um slug se não for enviado. Simplificação com Date.now()
     const finalSlug = params.slug || `${params.businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
 
@@ -119,7 +129,8 @@ export class AuthService {
           name: params.businessName,
           slug: finalSlug,
           categoryId: params.categoryId,
-          neighborhoodId: params.businessNeighborhoodId,
+          neighborhoodId: neighborhood.id,
+          cityId: neighborhood.cityId,
           phone: params.businessPhone,
           address: params.address,
           status: BusinessStatus.PENDING,
@@ -141,6 +152,7 @@ export class AuthService {
     vehiclePlate?: string;
     cpf?: string;
     cnh?: string;
+    cityId: string;
   }) {
     const phoneE164 = normalizePhoneToE164BR(params.phone);
 
@@ -160,6 +172,7 @@ export class AuthService {
         vehiclePlate: params.vehiclePlate,
         cpf: params.cpf,
         cnh: params.cnh,
+        cityId: params.cityId,
       },
     });
 
@@ -259,8 +272,11 @@ export class AuthService {
     return this.prisma.user.findUnique({
       where: { id: userId },
       include: {
+        city: {
+          select: { id: true, name: true }
+        },
         businesses: {
-          select: { id: true, name: true, slug: true, address: true, status: true, defaultDeliveryPrice: true, neighborhoodId: true }
+          select: { id: true, name: true, slug: true, address: true, status: true, defaultDeliveryPrice: true, neighborhoodId: true, cityId: true }
         }
       }
     });

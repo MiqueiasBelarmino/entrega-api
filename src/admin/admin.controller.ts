@@ -12,8 +12,8 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get('stats')
-  async getStats(@Query('range') range: 'today' | '7d' | '30d') {
-    return await this.adminService.getStats(range);
+  async getStats(@Query('range') range: 'today' | '7d' | '30d', @Query('cityId') cityId?: string) {
+    return await this.adminService.getStats(range, cityId);
   }
 
   @Get('deliveries')
@@ -22,11 +22,12 @@ export class AdminController {
       @Query('merchantId') merchantId?: string,
       @Query('courierId') courierId?: string,
       @Query('businessId') businessId?: string,
+      @Query('cityId') cityId?: string,
       @Query('query') query?: string,
       @Query('dateFrom') dateFrom?: string,
       @Query('dateTo') dateTo?: string,
   ) {
-      return this.adminService.findAllDeliveries({ status, merchantId, courierId, businessId, query, dateFrom, dateTo });
+      return this.adminService.findAllDeliveries({ status, merchantId, courierId, businessId, cityId, query, dateFrom, dateTo });
   }
 
   @Get('deliveries/:id')
@@ -42,9 +43,10 @@ export class AdminController {
   @Get('businesses')
   findAllBusinesses(
       @Query('status') status?: BusinessStatus,
+      @Query('cityId') cityId?: string,
       @Query('query') query?: string
   ) {
-      return this.adminService.findAllBusinesses({ status, query });
+      return this.adminService.findAllBusinesses({ status, query, cityId });
   }
 
   @Patch('businesses/:id')
@@ -59,17 +61,18 @@ export class AdminController {
   findAllUsers(
       @Query('role') role?: Role,
       @Query('isActive') isActive?: string, // Boolean passed as string in Query
+      @Query('cityId') cityId?: string,
       @Query('query') query?: string
   ) {
       // transform query bool
       const isActiveBool = isActive === 'true' ? true : isActive === 'false' ? false : undefined;
-      return this.adminService.findAllUsers({ role, isActive: isActiveBool, query });
+      return this.adminService.findAllUsers({ role, isActive: isActiveBool, query, cityId });
   }
 
   @Patch('users/:id')
   updateUser(
       @Param('id') id: string,
-      @Body() body: { role?: Role; isActive?: boolean }
+      @Body() body: { role?: Role; isActive?: boolean; cityId?: string }
   ) {
       return this.adminService.updateUser(id, body);
   }
@@ -77,9 +80,10 @@ export class AdminController {
   @Get('couriers')
   findCouriers(
       @Query('status') status?: CourierStatus,
+      @Query('cityId') cityId?: string,
       @Query('query') query?: string
   ) {
-      return this.adminService.findCouriers({ status, query });
+      return this.adminService.findCouriers({ status, query, cityId });
   }
 
   @Patch('couriers/:id/status')

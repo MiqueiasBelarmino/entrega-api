@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Request, ForbiddenException, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards, Request, ForbiddenException, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { DeliveriesService } from './deliveries.service';
 import { CreateDeliveryDto } from './dto/create-delivery.dto';
+import { HistoryPeriod, HistoryQueryDto } from './dto/history-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -26,6 +27,12 @@ export class DeliveriesController {
     return this.deliveriesService.findByCourier(req.user.id);
   }
 
+  @Get('history')
+  @Roles(Role.COURIER)
+  getHistory(@Request() req, @Query() query: HistoryQueryDto) {
+    return this.deliveriesService.getCourierHistory(req.user.id, query.period || HistoryPeriod.TODAY);
+  }
+
   // ==========================================
   // MERCHANT Routes
   // ==========================================
@@ -37,8 +44,8 @@ export class DeliveriesController {
 
   @Get()
   @Roles(Role.MERCHANT)
-  findAllMerchant(@Request() req) {
-    return this.deliveriesService.findAllMerchant(req.user.id);
+  findAllMerchant(@Request() req, @Query('businessId') businessId?: string) {
+    return this.deliveriesService.findAllMerchant(req.user.id, businessId);
   }
 
   @Get(':id')

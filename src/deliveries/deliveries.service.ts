@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException,
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDeliveryDto } from './dto/create-delivery.dto';
 import { DeliveryStatus, Prisma, Role } from '@prisma/client';
+import { HistoryPeriod } from './dto/history-query.dto';
 import { NotificationSender } from '../notifications/notification-channel';
 
 import { PushService } from '../push/push.service';
@@ -30,6 +31,21 @@ export class DeliveriesService {
 
     if (business.ownerId !== userId) {
       throw new ForbiddenException('You do not own this business');
+    }
+
+    // Validate City Consistency: Pickup and Dropoff must be in the same city
+    // Business now has cityId directly.
+    const destNeighborhood = await this.prisma.neighborhood.findUnique({
+        where: { id: dto.destNeighborhoodId },
+        select: { cityId: true }
+    });
+
+    if (!destNeighborhood) {
+        throw new NotFoundException('Destination neighborhood not found');
+    }
+
+    if (destNeighborhood.cityId !== business.cityId) {
+        throw new BadRequestException('Entrega entre cidades diferentes não é permitida no momento.');
     }
 
     const preferredUntil = dto.preferredCourierId 
@@ -61,9 +77,13 @@ export class DeliveriesService {
            routeTo: '/courier'
        });
     } else {
-        // Broadcast to all active couriers (MVP approach - could be geo-filtered later)
+        // Broadcast to all active couriers in the SAME CITY
         const activeCouriers = await this.prisma.user.findMany({
-            where: { role: Role.COURIER, isActive: true },
+            where: { 
+                role: Role.COURIER, 
+                isActive: true,
+                cityId: business.cityId
+            },
             select: { id: true }
         });
         const courierIds = activeCouriers.map(c => c.id);
@@ -81,9 +101,13 @@ export class DeliveriesService {
     return delivery;
   }
 
-  async findAllMerchant(userId: string) {
+  async findAllMerchant(userId: string, businessId?: string) {
+    const where: Prisma.DeliveryWhereInput = { merchantId: userId };
+    if (businessId) {
+      where.businessId = businessId;
+    }
     return this.prisma.delivery.findMany({
-      where: { merchantId: userId },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         courier: {
@@ -147,9 +171,22 @@ export class DeliveriesService {
 
   // Courier methods
   async findAvailable(userId: string) {
+    // 1. Get courier's city
+    const courier = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { cityId: true }
+    });
+
+    if (!courier || !courier.cityId) {
+        return [];
+    }
+
     return this.prisma.delivery.findMany({
       where: { 
           status: DeliveryStatus.AVAILABLE,
+          business: {
+              cityId: courier.cityId
+          },
           OR: [
               { preferredCourierId: null },
               { preferredCourierId: userId },
@@ -167,7 +204,6 @@ export class DeliveriesService {
       }
     });
   }
-
   async findByCourier(courierId: string) {
     const commonInclude = {
         business: {
@@ -178,7 +214,7 @@ export class DeliveriesService {
         }
     };
 
-    const [inProgress, waiting] = await Promise.all([
+    const [inProgress, waiting, completed, canceled] = await Promise.all([
         // 1. Em andamento (PICKED_UP): pickedUpAt ASC
         this.prisma.delivery.findMany({
             where: { courierId, status: DeliveryStatus.PICKED_UP },
@@ -199,29 +235,92 @@ export class DeliveriesService {
             ],
             include: commonInclude
         }),
-        // // 3. Histórico — completadas (COMPLETED): completedAt DESC
-        // this.prisma.delivery.findMany({
-        //     where: { courierId, status: DeliveryStatus.COMPLETED },
-        //     orderBy: [
-        //         { completedAt: 'desc' },
-        //         { createdAt: 'asc' },
-        //         { id: 'asc' }
-        //     ],
-        //     include: commonInclude
-        // }),
-        // // 4. Histórico — canceladas (CANCELED): canceledAt DESC
-        // this.prisma.delivery.findMany({
-        //     where: { courierId, status: DeliveryStatus.CANCELED },
-        //     orderBy: [
-        //         { canceledAt: 'desc' },
-        //         { createdAt: 'asc' },
-        //         { id: 'asc' }
-        //     ],
-        //     include: commonInclude
-        // })
+        // 3. Histórico — completadas (COMPLETED): completedAt DESC
+        this.prisma.delivery.findMany({
+            where: { courierId, status: DeliveryStatus.COMPLETED },
+            orderBy: [
+                { completedAt: 'desc' },
+                { createdAt: 'asc' },
+                { id: 'asc' }
+            ],
+            include: commonInclude
+        }),
+        // 4. Histórico — canceladas (CANCELED): canceledAt DESC
+        this.prisma.delivery.findMany({
+            where: { courierId, status: DeliveryStatus.CANCELED },
+            orderBy: [
+                { canceledAt: 'desc' },
+                { createdAt: 'asc' },
+                { id: 'asc' }
+            ],
+            include: commonInclude
+        })
     ]);
 
-    return [...inProgress, ...waiting];
+    return [...inProgress, ...waiting, ...completed, ...canceled];
+  }
+
+  async getCourierHistory(courierId: string, period: HistoryPeriod) {
+    const now = new Date();
+    // Brazil Timezone offset (UTC-3) - simplistic approach for MVP
+    // Better would be using a lib or setting TZ in env, but let's calculate based on UTC for now
+    // and adjust for standard BRT.
+    
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    let endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    if (period === HistoryPeriod.YESTERDAY) {
+      startDate.setDate(startDate.getDate() - 1);
+      endDate.setDate(endDate.getDate() - 1);
+    } else if (period === HistoryPeriod.WEEK) {
+      // Monday start
+      const day = startDate.getDay();
+      const diff = startDate.getDate() - day + (day === 0 ? -6 : 1);
+      startDate.setDate(diff);
+    } else if (period === HistoryPeriod.MONTH) {
+      startDate.setDate(startDate.getDate() - 30);
+    }
+
+    const deliveries = await this.prisma.delivery.findMany({
+      where: {
+        courierId,
+        status: DeliveryStatus.COMPLETED,
+        completedAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        business: {
+          select: { name: true },
+        },
+        destNeighborhood: {
+          select: { name: true },
+        },
+      },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    const stats = deliveries.reduce(
+      (acc, d) => {
+        acc.totalEarnings += Number(d.price);
+        acc.deliveryCount += 1;
+        return acc;
+      },
+      { totalEarnings: 0, deliveryCount: 0 },
+    );
+
+    const averageTicket = stats.deliveryCount > 0 ? stats.totalEarnings / stats.deliveryCount : 0;
+
+    return {
+      deliveries,
+      summary: {
+        ...stats,
+        averageTicket,
+      },
+    };
   }
 
   async accept(userId: string, id: string) {

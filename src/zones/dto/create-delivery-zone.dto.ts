@@ -8,4 +8,8 @@ export class CreateDeliveryZoneDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  cityId: string;
 }

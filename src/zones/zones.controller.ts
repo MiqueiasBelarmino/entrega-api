@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { ZonesService } from './zones.service';
 import { CreateDeliveryZoneDto } from './dto/create-delivery-zone.dto';
 import { UpdateDeliveryZoneDto } from './dto/update-delivery-zone.dto';
@@ -18,8 +18,8 @@ export class ZonesController {
 
   @UseGuards(JwtAuthGuard)
   @Get('neighborhoods')
-  findActiveNeighborhoods() {
-    return this.zonesService.findActiveNeighborhoods();
+  findActiveNeighborhoods(@Query('cityId') cityId?: string) {
+    return this.zonesService.findActiveNeighborhoods(cityId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -33,8 +33,8 @@ export class ZonesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get('admin/zones')
-  findAllZones() {
-    return this.zonesService.findAllZones();
+  findAllZones(@Query('cityId') cityId?: string) {
+    return this.zonesService.findAllZones(cityId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -62,8 +62,8 @@ export class ZonesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get('admin/neighborhoods')
-  findAllNeighborhoods() {
-    return this.zonesService.findAllNeighborhoods();
+  findAllNeighborhoods(@Query('cityId') cityId?: string) {
+    return this.zonesService.findAllNeighborhoods(cityId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -91,8 +91,8 @@ export class ZonesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get('admin/zones/price-rules')
-  findAllPriceRules() {
-    return this.zonesService.findAllPriceRules();
+  findAllPriceRules(@Query('cityId') cityId?: string) {
+    return this.zonesService.findAllPriceRules(cityId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

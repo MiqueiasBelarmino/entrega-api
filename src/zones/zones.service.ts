@@ -16,8 +16,12 @@ export class ZonesService {
     return this.prisma.deliveryZone.create({ data });
   }
 
-  async findAllZones() {
+  async findAllZones(cityId?: string) {
+    const where: any = {};
+    if (cityId) where.cityId = cityId;
     return this.prisma.deliveryZone.findMany({
+      where,
+      include: { city: { select: { name: true } } },
       orderBy: { name: 'asc' },
     });
   }
@@ -45,23 +49,28 @@ export class ZonesService {
 
   async createNeighborhood(data: CreateNeighborhoodDto) {
     const existing = await this.prisma.neighborhood.findUnique({
-      where: { name_city: { name: data.name, city: data.city } },
+      where: { name_cityId: { name: data.name, cityId: data.cityId } },
     });
     if (existing) throw new ConflictException('Neighborhood already exists in this city');
     
     return this.prisma.neighborhood.create({ data });
   }
 
-  async findAllNeighborhoods() {
+  async findAllNeighborhoods(cityId?: string) {
+    const where: any = {};
+    if (cityId) where.cityId = cityId;
     return this.prisma.neighborhood.findMany({
-      include: { deliveryZone: true },
+      where,
+      include: { deliveryZone: true, city: { select: { name: true } } },
       orderBy: { name: 'asc' },
     });
   }
 
-  async findActiveNeighborhoods() {
+  async findActiveNeighborhoods(cityId?: string) {
+    const where: any = { isActive: true };
+    if (cityId) where.cityId = cityId;
     return this.prisma.neighborhood.findMany({
-      where: { isActive: true },
+      where,
       include: { deliveryZone: true },
       orderBy: { name: 'asc' },
     });
@@ -75,11 +84,11 @@ export class ZonesService {
 
   async updateNeighborhood(id: string, data: UpdateNeighborhoodDto) {
     await this.findOneNeighborhood(id);
-    if (data.name || data.city) {
+    if (data.name || data.cityId) {
       const existing = await this.prisma.neighborhood.findFirst({
         where: {
           name: data.name,
-          city: data.city,
+          cityId: data.cityId,
           NOT: { id },
         },
       });
@@ -119,8 +128,14 @@ export class ZonesService {
     });
   }
 
-  async findAllPriceRules() {
+  async findAllPriceRules(cityId?: string) {
+    const where: any = {};
+    if (cityId) {
+      where.originZone = { cityId };
+    }
+    
     return this.prisma.zonePriceRule.findMany({
+      where,
       include: {
         originZone: true,
         destZone: true,
