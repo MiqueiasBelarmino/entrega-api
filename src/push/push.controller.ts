@@ -8,6 +8,7 @@ interface AuthenticatedRequest extends Request {
     id: string;
     role: string;
   };
+  headers: Request['headers'];
 }
 
 @Controller('push')
