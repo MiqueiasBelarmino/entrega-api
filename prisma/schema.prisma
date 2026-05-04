@@ -208,6 +208,9 @@ model Delivery {
   issueAt     DateTime? @map("issue_at")
   issueReason String?   @map("issue_reason")
 
+  // [NEW] Track couriers who rejected or canceled the delivery
+  rejectedBy  String[] @default([])
+
   // Rating relations
   ratings     Rating[]
 

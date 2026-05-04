@@ -68,6 +68,12 @@ export class DeliveriesService {
     });
 
     // Notify Couriers
+    this.broadcastToCouriers(delivery, business.cityId);
+
+    return delivery;
+  }
+
+  private async broadcastToCouriers(delivery: any, cityId: string) {
     if (delivery.preferredCourierId) {
        this.pushService.sendToUser(delivery.preferredCourierId, {
            type: 'delivery-available',
@@ -77,16 +83,15 @@ export class DeliveriesService {
            routeTo: '/courier'
        });
     } else {
-        // Broadcast to all active couriers in the SAME CITY
         const activeCouriers = await this.prisma.user.findMany({
             where: { 
                 role: Role.COURIER, 
                 isActive: true,
-                cityId: business.cityId
+                cityId: cityId
             },
             select: { id: true }
         });
-        const courierIds = activeCouriers.map(c => c.id);
+        const courierIds = activeCouriers.map(c => c.id).filter(id => !delivery.rejectedBy?.includes(id));
         if (courierIds.length > 0) {
             this.pushService.sendToUsers(courierIds, {
                 type: 'delivery-available',
@@ -97,8 +102,6 @@ export class DeliveriesService {
             });
         }
     }
-
-    return delivery;
   }
 
   async findAllMerchant(userId: string, businessId?: string) {
@@ -186,6 +189,9 @@ export class DeliveriesService {
           status: DeliveryStatus.AVAILABLE,
           business: {
               cityId: courier.cityId
+          },
+          NOT: {
+              rejectedBy: { has: userId }
           },
           OR: [
               { preferredCourierId: null },
@@ -447,37 +453,51 @@ export class DeliveriesService {
   }
 
   async cancel(userId: string, id: string) {
-    const result = await this.prisma.delivery.updateMany({
-      where: {
-        id,
-        courierId: userId,
-        status: DeliveryStatus.ACCEPTED,
-      },
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id },
+      include: { business: true }
+    });
+
+    if (!delivery) throw new NotFoundException('Delivery not found');
+
+    if (delivery.courierId !== userId) {
+      throw new ForbiddenException('You are not the courier for this delivery');
+    }
+    if (delivery.status !== DeliveryStatus.ACCEPTED) {
+      throw new ConflictException(`Cannot cancel delivery in status ${delivery.status}`);
+    }
+
+    // Revert to AVAILABLE and record the rejection
+    const updated = await this.prisma.delivery.update({
+      where: { id },
       data: {
-        status: DeliveryStatus.CANCELED,
-        canceledAt: new Date(),
-        canceledBy: 'COURIER', // CanceledBy.COURIER
-        cancelReason: 'Courier canceled',
+        status: DeliveryStatus.AVAILABLE,
+        courierId: null,
+        acceptedAt: null,
+        rejectedBy: { push: userId },
       },
     });
 
-    if (result.count === 0) {
-      const delivery = await this.prisma.delivery.findUnique({ where: { id } });
-      if (!delivery) throw new NotFoundException('Delivery not found');
+    // Notify Merchant
+    this.pushService.sendToUser(updated.merchantId, {
+        type: 'delivery-canceled',
+        deliveryId: updated.id,
+        title: 'Entregador desistiu ⚠️',
+        body: 'O entregador cancelou, mas a entrega já voltou a ficar disponível para outros.',
+        routeTo: '/merchant'
+    });
 
-      if (delivery.courierId !== userId) {
-        throw new ForbiddenException('You are not the courier for this delivery');
-      }
-      if (delivery.status !== DeliveryStatus.ACCEPTED) {
-        throw new ConflictException(`Cannot cancel delivery in status ${delivery.status}`);
-      }
-    }
+    // Broadcast back to active couriers
+    this.broadcastToCouriers(updated, delivery.business.cityId);
 
-    return this.prisma.delivery.findUnique({ where: { id } });
+    return updated;
   }
 
-  async cancelByMerchant(userId: string, id: string, reason?: string) {
-      const delivery = await this.prisma.delivery.findUnique({ where: { id } });
+  async cancelByMerchant(userId: string, id: string, reason?: string, republish?: boolean) {
+      const delivery = await this.prisma.delivery.findUnique({ 
+          where: { id },
+          include: { business: true }
+      });
       if (!delivery) throw new NotFoundException('Delivery not found');
       
       if (delivery.merchantId !== userId) {
@@ -488,31 +508,60 @@ export class DeliveriesService {
           throw new ConflictException('Cannot cancel delivery in current status');
       }
 
-      // If accepted, we can cancel, but it affects the courier.
-      // Requirements: "Allowed when status is AVAILABLE or ACCEPTED (only if not PICKED_UP)." -> Handled.
-      
-      const updated = await this.prisma.delivery.update({
-          where: { id },
-          data: {
-              status: DeliveryStatus.CANCELED,
-              canceledAt: new Date(),
-              canceledBy: 'MERCHANT', // CanceledBy.MERCHANT
-              cancelReason: reason || 'Merchant canceled',
-          }
-      });
-      
-      // Notify Courier if allocated
-      if (delivery.courierId) {
-          this.pushService.sendToUser(delivery.courierId, {
-              type: 'delivery-canceled',
-              deliveryId: updated.id,
-              title: 'Entrega cancelada ❌',
-              body: 'O estabelecimento cancelou o pedido.',
-              routeTo: '/courier'
-          });
-      }
+      const prevCourierId = delivery.courierId;
 
-      return updated;
+      if (republish && delivery.status === DeliveryStatus.ACCEPTED) {
+          // Republish flow
+          const updated = await this.prisma.delivery.update({
+              where: { id },
+              data: {
+                  status: DeliveryStatus.AVAILABLE,
+                  courierId: null,
+                  acceptedAt: null,
+                  rejectedBy: prevCourierId ? { push: prevCourierId } : undefined,
+              }
+          });
+
+          // Notify Courier if allocated
+          if (prevCourierId) {
+              this.pushService.sendToUser(prevCourierId, {
+                  type: 'delivery-canceled',
+                  deliveryId: updated.id,
+                  title: 'Atribuição cancelada ❌',
+                  body: 'O estabelecimento removeu você desta entrega.',
+                  routeTo: '/courier'
+              });
+          }
+
+          // Broadcast to other couriers
+          this.broadcastToCouriers(updated, delivery.business.cityId);
+
+          return updated;
+      } else {
+          // Normal cancel flow
+          const updated = await this.prisma.delivery.update({
+              where: { id },
+              data: {
+                  status: DeliveryStatus.CANCELED,
+                  canceledAt: new Date(),
+                  canceledBy: 'MERCHANT', // CanceledBy.MERCHANT
+                  cancelReason: reason || 'Merchant canceled',
+              }
+          });
+          
+          // Notify Courier if allocated
+          if (prevCourierId) {
+              this.pushService.sendToUser(prevCourierId, {
+                  type: 'delivery-canceled',
+                  deliveryId: updated.id,
+                  title: 'Entrega cancelada ❌',
+                  body: 'O estabelecimento cancelou o pedido.',
+                  routeTo: '/courier'
+              });
+          }
+
+          return updated;
+      }
   }
 
   async reportIssue(userId: string, id: string, reason: string) {
