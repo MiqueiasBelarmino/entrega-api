@@ -76,6 +76,18 @@ http.createServer((req, res) => {
         });
         return;
     }
+        // AÇÃO: GET-ENV (Para você ver o que tem lá antes de mudar)
+        if (req.method === 'GET' && action === 'get-env') {
+            const config = PROJECTS[project || 'api'];
+            if (fs.existsSync(config.envPath)) {
+                const content = fs.readFileSync(config.envPath, 'utf8');
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end(content);
+            } else {
+                res.writeHead(404); res.end('Arquivo nao encontrado');
+            }
+            return;
+        }
 
     // AÇÃO: STATUS
     if (req.method === 'GET' && action === 'status') {
