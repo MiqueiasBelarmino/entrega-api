@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { NotificationSender, SendOtpParams } from './notification-channel';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppMetaService } from './whatsapp-meta/whatsapp-meta.service';
+import { TelegramAlertService } from '../alerts/telegram-alert.service';
 
 @Injectable()
 export class SmartNotificationSender extends NotificationSender {
@@ -10,6 +11,7 @@ export class SmartNotificationSender extends NotificationSender {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsAppMetaService: WhatsAppMetaService,
+    private readonly telegramAlertService: TelegramAlertService,
   ) {
     super();
   }
@@ -103,8 +105,8 @@ export class SmartNotificationSender extends NotificationSender {
 
     this.logger.error('Todos os provedores de notificação falharam.');
 
-    // Enviar alerta para o Telegram
-    this.sendTelegramAlert(
+    // Enviar alerta para o Telegram usando o serviço centralizado
+    this.telegramAlertService.sendAlert(
       `🚨 *Alerta Crítico: API Entrega Hub* 🚨\nFalha total ao enviar OTP para \`${params.to}\`.\nTodos os provedores falharam.\n*Último Erro:* ${lastError?.message || 'Erro desconhecido'}`
     );
 
@@ -116,27 +118,6 @@ export class SmartNotificationSender extends NotificationSender {
     // For now we just log a warning as MVP requires templates on WhatsApp
     this.logger.warn('Send (free text) is not natively supported directly on WhatsApp Utility without templates. Doing nothing.');
   }
-
-  private async sendTelegramAlert(message: string) {
-    try {
-      const token = process.env.TELEGRAM_BOT_TOKEN;
-      const chatId = process.env.TELEGRAM_CHAT_ID;
-      
-      if (!token || !chatId) return;
-
-      const url = `https://api.telegram.org/bot${token}/sendMessage`;
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: 'Markdown',
-        }),
-      });
-    } catch (error) {
-      this.logger.error(`Falha ao enviar alerta para o Telegram: ${(error as Error).message}`);
-    }
-  }
 }
+
 

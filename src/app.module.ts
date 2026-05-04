@@ -17,6 +17,7 @@ import { PushModule } from './push/push.module';
 import { ZonesModule } from './zones/zones.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { CitiesModule } from './cities/cities.module';
+import { AlertsModule } from './alerts/alerts.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CitiesModule } from './cities/cities.module';
     ZonesModule,
     RatingsModule,
     CitiesModule,
+    AlertsModule,
   ],
   controllers: [AppController, SystemController],
   providers: [
