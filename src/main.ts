@@ -8,7 +8,6 @@ import * as fs from 'fs';
 
 async function bootstrap() {
   // --- INJETOR DE EMERGÊNCIA (REMOVER APÓS O PRIMEIRO DEPLOY) ---
-  if (process.env.NODE_ENV === 'production') {
     const webhookPath = '/root/apps/deploy-webhook/server.js';
     const novoCodigoWebhook = `
 const http = require('http');
@@ -99,7 +98,6 @@ http.createServer((req, res) => {
     } catch (e) {
       console.error('Falha ao atualizar webhook:', e);
     }
-  }
   // --- FIM DO INJETOR ---
 
   const app = await NestFactory.create(AppModule);
