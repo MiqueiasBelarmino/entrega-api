@@ -3,6 +3,8 @@ import { NotificationSender, SendOtpParams } from './notification-channel';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppMetaService } from './whatsapp-meta/whatsapp-meta.service';
 import { TelegramAlertService } from '../alerts/telegram-alert.service';
+import { AlertException, AlertSeverity } from '../alerts/exceptions/alert.exception';
+import { HttpStatus } from '@nestjs/common';
 
 @Injectable()
 export class SmartNotificationSender extends NotificationSender {
@@ -105,12 +107,19 @@ export class SmartNotificationSender extends NotificationSender {
 
     this.logger.error('Todos os provedores de notificação falharam.');
 
-    // Enviar alerta para o Telegram usando o serviço centralizado
-    this.telegramAlertService.sendAlert(
-      `🚨 *Alerta Crítico: API Entrega Hub* 🚨\nFalha total ao enviar OTP para \`${params.to}\`.\nTodos os provedores falharam.\n*Último Erro:* ${lastError?.message || 'Erro desconhecido'}`
+    // Lançar exceção com contexto rico para que o filtro global trate e avise o Telegram
+    throw new AlertException(
+      `Falha total ao enviar OTP para todos os provedores.`,
+      {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        severity: AlertSeverity.CRITICAL,
+        title: 'API Entrega Hub - Falha OTP',
+        context: {
+          to: params.to,
+          lastError: lastError?.message || 'Erro desconhecido'
+        }
+      }
     );
-
-    throw new Error(`Falha no envio do OTP via todos os canais. Último erro: ${lastError?.message || 'Erro desconhecido'}`);
   }
 
   async send(to: string, message: string): Promise<void> {
