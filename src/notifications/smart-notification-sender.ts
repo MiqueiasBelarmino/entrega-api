@@ -102,6 +102,12 @@ export class SmartNotificationSender extends NotificationSender {
     }
 
     this.logger.error('Todos os provedores de notificação falharam.');
+
+    // Enviar alerta para o Telegram
+    this.sendTelegramAlert(
+      `🚨 *Alerta Crítico: API Entrega Hub* 🚨\nFalha total ao enviar OTP para \`${params.to}\`.\nTodos os provedores falharam.\n*Último Erro:* ${lastError?.message || 'Erro desconhecido'}`
+    );
+
     throw new Error(`Falha no envio do OTP via todos os canais. Último erro: ${lastError?.message || 'Erro desconhecido'}`);
   }
 
@@ -109,6 +115,28 @@ export class SmartNotificationSender extends NotificationSender {
     // This method is for generic text sending (non-template or different templates)
     // For now we just log a warning as MVP requires templates on WhatsApp
     this.logger.warn('Send (free text) is not natively supported directly on WhatsApp Utility without templates. Doing nothing.');
+  }
+
+  private async sendTelegramAlert(message: string) {
+    try {
+      const token = process.env.TELEGRAM_BOT_TOKEN;
+      const chatId = process.env.TELEGRAM_CHAT_ID;
+      
+      if (!token || !chatId) return;
+
+      const url = `https://api.telegram.org/bot${token}/sendMessage`;
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message,
+          parse_mode: 'Markdown',
+        }),
+      });
+    } catch (error) {
+      this.logger.error(`Falha ao enviar alerta para o Telegram: ${(error as Error).message}`);
+    }
   }
 }
 
