@@ -217,22 +217,23 @@ describe('DeliveriesService', () => {
   });
 
   describe('cancel (courier)', () => {
-    it('should cancel an ACCEPTED delivery by courier and record canceledBy COURIER', async () => {
-      mockPrisma.delivery.updateMany.mockResolvedValue({ count: 1 });
+    it('should revert an ACCEPTED delivery to AVAILABLE and add courier to rejectedBy', async () => {
+      mockPrisma.delivery.findUnique.mockResolvedValue({ id: 'del-1', courierId: 'courier-1', status: DeliveryStatus.ACCEPTED, business: { cityId: 'city-1' } });
+      mockPrisma.delivery.update.mockResolvedValue({ id: 'del-1', status: DeliveryStatus.AVAILABLE, merchantId: 'm-1', businessId: 'b-1' });
+      
       await service.cancel('courier-1', 'del-1');
-      expect(prisma.delivery.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ status: DeliveryStatus.CANCELED, canceledBy: 'COURIER' }),
+      expect(prisma.delivery.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: DeliveryStatus.AVAILABLE, courierId: null }),
       }));
+      expect(pushService.sendToUser).toHaveBeenCalledWith('m-1', expect.any(Object));
     });
 
-    it('should throw ConflictException if cancel fails (wrong status or not assigned courier)', async () => {
-      mockPrisma.delivery.updateMany.mockResolvedValue({ count: 0 });
+    it('should throw ConflictException if cancel fails (wrong status)', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue({ id: 'del-1', courierId: 'courier-1', status: DeliveryStatus.PICKED_UP });
       await expect(service.cancel('courier-1', 'del-1')).rejects.toThrow(ConflictException);
     });
 
-    it('should throw NotFoundException if delivery is not found on cancel fallback', async () => {
-      mockPrisma.delivery.updateMany.mockResolvedValue({ count: 0 });
+    it('should throw NotFoundException if delivery is not found', async () => {
       mockPrisma.delivery.findUnique.mockResolvedValue(null);
       await expect(service.cancel('courier-1', 'del-1')).rejects.toThrow(NotFoundException);
     });
@@ -240,7 +241,7 @@ describe('DeliveriesService', () => {
 
   describe('cancelByMerchant', () => {
     it('should cancel AVAILABLE delivery by merchant and notify any assigned courier', async () => {
-      mockPrisma.delivery.findUnique.mockResolvedValue({ id: 'del-1', merchantId: 'm-1', status: DeliveryStatus.AVAILABLE, courierId: null });
+      mockPrisma.delivery.findUnique.mockResolvedValue({ id: 'del-1', merchantId: 'm-1', status: DeliveryStatus.AVAILABLE, courierId: null, business: { cityId: 'city-1' } });
       mockPrisma.delivery.update.mockResolvedValue({ id: 'del-1', status: DeliveryStatus.CANCELED });
 
       await service.cancelByMerchant('m-1', 'del-1', 'Changed mind');
@@ -251,10 +252,21 @@ describe('DeliveriesService', () => {
     });
 
     it('should notify courier when canceling an ACCEPTED delivery', async () => {
-      mockPrisma.delivery.findUnique.mockResolvedValue({ id: 'del-1', merchantId: 'm-1', status: DeliveryStatus.ACCEPTED, courierId: 'c-1' });
+      mockPrisma.delivery.findUnique.mockResolvedValue({ id: 'del-1', merchantId: 'm-1', status: DeliveryStatus.ACCEPTED, courierId: 'c-1', business: { cityId: 'city-1' } });
       mockPrisma.delivery.update.mockResolvedValue({ id: 'del-1', status: DeliveryStatus.CANCELED });
 
       await service.cancelByMerchant('m-1', 'del-1');
+      expect(pushService.sendToUser).toHaveBeenCalledWith('c-1', expect.any(Object));
+    });
+
+    it('should republish ACCEPTED delivery when republish flag is true', async () => {
+      mockPrisma.delivery.findUnique.mockResolvedValue({ id: 'del-1', merchantId: 'm-1', status: DeliveryStatus.ACCEPTED, courierId: 'c-1', business: { cityId: 'city-1' } });
+      mockPrisma.delivery.update.mockResolvedValue({ id: 'del-1', status: DeliveryStatus.AVAILABLE });
+
+      await service.cancelByMerchant('m-1', 'del-1', undefined, true);
+      expect(prisma.delivery.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: DeliveryStatus.AVAILABLE, courierId: null }),
+      }));
       expect(pushService.sendToUser).toHaveBeenCalledWith('c-1', expect.any(Object));
     });
 

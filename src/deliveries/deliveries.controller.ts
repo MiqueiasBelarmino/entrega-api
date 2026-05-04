@@ -93,7 +93,12 @@ export class DeliveriesController {
   @Post(':id/cancel-merchant')
   @Roles(Role.MERCHANT)
   @HttpCode(HttpStatus.OK)
-  cancelMerchant(@Request() req, @Param('id') id: string, @Body('reason') reason: string) {
-      return this.deliveriesService.cancelByMerchant(req.user.id, id, reason);
+  cancelMerchant(
+    @Request() req, 
+    @Param('id') id: string, 
+    @Body('reason') reason: string,
+    @Body('republish') republish?: boolean
+  ) {
+      return this.deliveriesService.cancelByMerchant(req.user.id, id, reason, republish);
   }
 }
