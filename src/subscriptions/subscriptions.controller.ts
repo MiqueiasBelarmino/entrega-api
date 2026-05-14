@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -25,7 +25,7 @@ export class SubscriptionsController {
 
   @Get('my')
   @Roles(Role.MERCHANT)
-  async findMy(@Request() req, @Param('businessId') businessId: string) {
+  async findMy(@Request() req, @Query('businessId') businessId: string) {
     // In a real scenario, we should verify if the user owns the business
     // For now, let's assume businessId is passed from the frontend
     return this.subscriptionsService.findByBusiness(businessId);

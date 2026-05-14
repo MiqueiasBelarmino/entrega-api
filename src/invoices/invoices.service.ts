@@ -60,7 +60,7 @@ export class InvoicesService {
     let excessDeliveries = 0;
     let deliveryFeeAmount = new Prisma.Decimal(0);
 
-    const invoiceDeliveriesData = [];
+    const invoiceDeliveriesData: any[] = [];
 
     for (let i = 0; i < deliveries.length; i++) {
       const delivery = deliveries[i];

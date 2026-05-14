@@ -179,7 +179,7 @@ export class AdminService {
           try {
               await this.subscriptionsService.create({
                   businessId: id,
-                  planId: 'default-per-delivery-plan',
+                  planId: '069e312f-ff70-4b7a-9257-d59d9ab15138',
                   status: SubscriptionStatus.ACTIVE,
                   startDate: new Date().toISOString()
               });
