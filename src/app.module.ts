@@ -18,6 +18,9 @@ import { ZonesModule } from './zones/zones.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { CitiesModule } from './cities/cities.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { PlansModule } from './plans/plans.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { InvoicesModule } from './invoices/invoices.module';
 
 @Module({
   imports: [
@@ -33,6 +36,9 @@ import { AlertsModule } from './alerts/alerts.module';
     RatingsModule,
     CitiesModule,
     AlertsModule,
+    PlansModule,
+    SubscriptionsModule,
+    InvoicesModule,
   ],
   controllers: [AppController, SystemController],
   providers: [

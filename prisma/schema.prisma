@@ -42,6 +42,31 @@ enum CanceledBy {
   SYSTEM
 }
 
+enum BillingCycleType {
+  MONTHLY_FIXED // Dia 1 de cada ms
+  FROM_SUBSCRIPTION_DATE // Aniversrio da adeso (padro)
+}
+
+enum PerDeliveryFeeType {
+  FIXED // Valor fixo por entrega (ex: R$ 2,00)
+  PERCENTAGE // % sobre o valor da entrega (ex: 5%)
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  OVERDUE // Fatura vencida  admin ainda no bloqueou
+  SUSPENDED // Bloqueado manualmente pelo admin
+  CANCELED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  WAIVED // Isento/perdoado pelo admin
+}
+
 model User {
   id   String @id @default(uuid())
   name String
@@ -161,6 +186,10 @@ model Business {
 
   deliveries Delivery[]
 
+  // Billing relations
+  subscription Subscription?
+  invoices     Invoice[]
+
   @@index([ownerId])
   @@index([categoryId])
   @@index([cityId])
@@ -214,6 +243,9 @@ model Delivery {
 
   // Rating relations
   ratings     Rating[]
+
+  // Billing relations
+  invoiceDeliveries InvoiceDelivery[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -353,5 +385,114 @@ model Rating {
   @@index([reviewedId])
   @@index([deliveryId])
   @@map("ratings")
+}
+
+model Plan {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+  isPublic    Boolean @default(true) @map("is_public") // false = customizado por loja
+
+  // Mensalidade
+  monthlyFee    Decimal? @map("monthly_fee") @db.Decimal(10, 2)
+  deliveryLimit Int?     @map("delivery_limit") // entregas inclusas; null = ilimitado
+
+  // Taxa por entrega (excedente ou total se sem mensalidade)
+  perDeliveryFee     Decimal?            @map("per_delivery_fee") @db.Decimal(10, 4)
+  perDeliveryFeeType PerDeliveryFeeType? @map("per_delivery_fee_type")
+
+  // Ciclo de faturamento
+  billingCycleType BillingCycleType @default(FROM_SUBSCRIPTION_DATE) @map("billing_cycle_type")
+
+  // Trial
+  trialDays Int? @map("trial_days") // null = sem trial
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+
+  @@index([isActive, isPublic])
+  @@map("plans")
+}
+
+model Subscription {
+  id         String   @id @default(uuid())
+  businessId String   @unique @map("business_id") // 1 assinatura ativa por loja
+  business   Business @relation(fields: [businessId], references: [id])
+
+  planId String @map("plan_id")
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  status          SubscriptionStatus @default(TRIAL)
+  startDate       DateTime           @map("start_date")
+  trialEndsAt     DateTime?          @map("trial_ends_at")
+  nextBillingDate DateTime?          @map("next_billing_date")
+
+  canceledAt    DateTime? @map("canceled_at")
+  cancelReason  String?   @map("cancel_reason")
+  suspendedAt   DateTime? @map("suspended_at")
+  suspendReason String?   @map("suspend_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  invoices Invoice[]
+
+  @@index([status])
+  @@index([nextBillingDate])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id             String       @id @default(uuid())
+  subscriptionId String       @map("subscription_id")
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+
+  businessId String   @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id])
+
+  referenceMonth String // "2026-05"
+  periodStart    DateTime @map("period_start")
+  periodEnd      DateTime @map("period_end")
+  dueDate        DateTime @map("due_date")
+
+  monthlyFeeAmount   Decimal @default(0) @map("monthly_fee_amount") @db.Decimal(10, 2)
+  deliveryCount      Int     @default(0) @map("delivery_count")
+  includedDeliveries Int     @default(0) @map("included_deliveries") // cobertos pela franquia
+  excessDeliveries   Int     @default(0) @map("excess_deliveries")
+  deliveryFeeAmount  Decimal @default(0) @map("delivery_fee_amount") @db.Decimal(10, 2)
+  totalAmount        Decimal @map("total_amount") @db.Decimal(10, 2)
+
+  status InvoiceStatus @default(PENDING)
+  paidAt DateTime?     @map("paid_at")
+  paidBy String?       @map("paid_by") // userId do admin
+  notes  String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  deliveries InvoiceDelivery[]
+
+  @@unique([subscriptionId, referenceMonth]) // idempotncia
+  @@index([businessId, status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model InvoiceDelivery {
+  invoiceId String  @map("invoice_id")
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+
+  deliveryId String   @map("delivery_id")
+  delivery   Delivery @relation(fields: [deliveryId], references: [id])
+
+  deliveryValue Decimal @map("delivery_value") @db.Decimal(10, 2) // price no momento
+  feeAmount     Decimal @map("fee_amount") @db.Decimal(10, 2) // taxa cobrada
+  isIncluded    Boolean @default(false) @map("is_included") // coberto pela franquia
+
+  @@id([invoiceId, deliveryId])
+  @@map("invoice_deliveries")
 }
 

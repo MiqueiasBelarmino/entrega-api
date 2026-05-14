@@ -1,10 +1,14 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { DeliveryStatus, Prisma, Role, BusinessStatus, CourierStatus } from '@prisma/client';
+import { DeliveryStatus, Prisma, Role, BusinessStatus, CourierStatus, SubscriptionStatus } from '@prisma/client';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private subscriptionsService: SubscriptionsService,
+  ) {}
 
   // 1. STATS
   async getStats(range: 'today' | '7d' | '30d' = 'today', cityId?: string) {
@@ -164,10 +168,29 @@ export class AdminService {
   }
 
   async updateBusinessStatus(id: string, status: BusinessStatus) {
-      return this.prisma.business.update({
+      const business = await this.prisma.business.update({
           where: { id },
-          data: { status }
+          data: { status },
+          include: { subscription: true }
       });
+
+      // If business is activated and has no subscription, create one with the default plan
+      if (status === BusinessStatus.ACTIVE && !business.subscription) {
+          try {
+              await this.subscriptionsService.create({
+                  businessId: id,
+                  planId: 'default-per-delivery-plan',
+                  status: SubscriptionStatus.ACTIVE,
+                  startDate: new Date().toISOString()
+              });
+          } catch (error) {
+              console.error(`Failed to create auto-subscription for business ${id}:`, error);
+              // We don't throw here to avoid rolling back the business status update, 
+              // but in a production system we might want more robust error handling.
+          }
+      }
+
+      return business;
   }
 
   // 4. USERS
