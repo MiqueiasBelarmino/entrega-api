@@ -5,11 +5,19 @@ import { AuthStartDto } from './dto/auth-start.dto';
 import { AuthVerifyDto } from './dto/auth-verify.dto';
 import { RegisterMerchantDto } from './dto/register-merchant.dto';
 import { RegisterCourierDto } from './dto/register-courier.dto';
+import { LoginDto } from './dto/login.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 import { Public } from '../common/decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Post('login')
+  login(@Body() body: LoginDto) {
+    return this.authService.loginWithPassword(body);
+  }
 
   @Public()
   @Post('start')
@@ -54,5 +62,11 @@ export class AuthController {
   async me(@Req() req: any) {
     // req.user comes from JWT, might be stale. Fetch fresh.
     return this.authService.getMe(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('set-password')
+  setPassword(@Req() req: any, @Body() body: SetPasswordDto) {
+    return this.authService.setPassword(req.user.id, body.password);
   }
 }

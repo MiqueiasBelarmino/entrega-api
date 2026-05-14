@@ -49,6 +49,7 @@ model User {
 
   phoneE164 String  @unique @map("phone_e164")
   email     String? @unique
+  passwordHash String? @map("password_hash")
 
   isActive Boolean @default(true) @map("is_active")
   isRoot   Boolean @default(false) @map("is_root") // [NEW]

@@ -5,6 +5,7 @@ import { NotificationSender } from '../notifications/notification-channel';
 import { Role, BusinessStatus } from '@prisma/client';
 import { normalizePhoneToE164BR } from '../common/phone/normalize-phone';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 type JwtPayload = {
   sub: string;
@@ -22,6 +23,59 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly notificationSender: NotificationSender,
   ) {}
+
+  async loginWithPassword(params: { phone: string; password: string }) {
+    const phoneE164 = normalizePhoneToE164BR(params.phone);
+
+    const user = await this.prisma.user.findUnique({
+      where: { phoneE164 },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Credenciais inválidas.');
+    }
+
+    if (!user.passwordHash) {
+      throw new BadRequestException('Sua conta ainda não possui uma senha definida. Por favor, acesse via WhatsApp e defina uma senha no seu perfil.');
+    }
+
+    const isPasswordValid = await bcrypt.compare(params.password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Credenciais inválidas.');
+    }
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phoneE164: user.phoneE164,
+      isRoot: user.isRoot,
+    };
+
+    const jwt = this.jwtService.sign(payload);
+
+    return {
+      accessToken: jwt,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phoneE164: user.phoneE164,
+        isRoot: user.isRoot,
+      },
+    };
+  }
+
+  async setPassword(userId: string, password: string) {
+    const passwordHash = await bcrypt.hash(password, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    return { ok: true };
+  }
 
   private hashOtp(code: string): string {
     // MVP: SHA256. Em produção, pode adicionar pepper e/ou usar scrypt/argon.
@@ -89,6 +143,7 @@ export class AuthService {
     slug?: string;
     requestIp?: string;
     userAgent?: string;
+    password?: string;
   }) {
     const phoneE164 = normalizePhoneToE164BR(params.phone);
 
@@ -120,6 +175,7 @@ export class AuthService {
           phoneE164,
           name: params.name,
           role: Role.MERCHANT,
+          passwordHash: params.password ? await bcrypt.hash(params.password, 10) : null,
         },
       });
 
@@ -153,6 +209,7 @@ export class AuthService {
     cpf?: string;
     cnh?: string;
     cityId: string;
+    password?: string;
   }) {
     const phoneE164 = normalizePhoneToE164BR(params.phone);
 
@@ -173,6 +230,7 @@ export class AuthService {
         cpf: params.cpf,
         cnh: params.cnh,
         cityId: params.cityId,
+        passwordHash: params.password ? await bcrypt.hash(params.password, 10) : null,
       },
     });
 
