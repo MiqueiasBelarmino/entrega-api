@@ -1,4 +1,4 @@
-import { IsBoolean, IsDecimal, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { BillingCycleType, PerDeliveryFeeType } from '@prisma/client';
 
 export class CreatePlanDto {
@@ -18,18 +18,20 @@ export class CreatePlanDto {
   @IsOptional()
   isPublic?: boolean;
 
-  @IsDecimal()
+  @IsNumber()
+  @Min(0)
   @IsOptional()
-  monthlyFee?: string;
+  monthlyFee?: number;
 
   @IsInt()
   @Min(0)
   @IsOptional()
   deliveryLimit?: number;
 
-  @IsDecimal()
+  @IsNumber()
+  @Min(0)
   @IsOptional()
-  perDeliveryFee?: string;
+  perDeliveryFee?: number;
 
   @IsEnum(PerDeliveryFeeType)
   @IsOptional()

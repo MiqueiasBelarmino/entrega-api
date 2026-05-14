@@ -44,8 +44,13 @@ export class DeliveriesController {
 
   @Get()
   @Roles(Role.MERCHANT)
-  findAllMerchant(@Request() req, @Query('businessId') businessId?: string) {
-    return this.deliveriesService.findAllMerchant(req.user.id, businessId);
+  findAllMerchant(
+    @Request() req, 
+    @Query('businessId') businessId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.deliveriesService.findAllMerchant(req.user.id, businessId, startDate, status as any);
   }
 
   @Get(':id')

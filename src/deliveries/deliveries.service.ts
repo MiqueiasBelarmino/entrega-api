@@ -104,10 +104,16 @@ export class DeliveriesService {
     }
   }
 
-  async findAllMerchant(userId: string, businessId?: string) {
+  async findAllMerchant(userId: string, businessId?: string, startDate?: string, status?: DeliveryStatus) {
     const where: Prisma.DeliveryWhereInput = { merchantId: userId };
     if (businessId) {
       where.businessId = businessId;
+    }
+    if (startDate) {
+      where.completedAt = { gte: new Date(startDate) };
+    }
+    if (status) {
+      where.status = status;
     }
     return this.prisma.delivery.findMany({
       where,
